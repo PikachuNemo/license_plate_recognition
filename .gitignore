@@ -1,2 +1,4 @@
-vehicle_number_plate_recognition/
-# Ignore the vehicle number plate recognition directory
+# Ignore the vehicle number plate detection directory
+vehicle_number_plate_detection/ 
+
+.venv/

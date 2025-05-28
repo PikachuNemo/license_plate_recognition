@@ -1,0 +1,17 @@
+
+path: C:/Users/Nemo/anaconda_projects/ml/license_plate_recognition/vehicle_number_plate_detection # DATASET ROOT DIRECTORY
+train: images/train
+val: images/train
+
+
+# classes
+
+# names:
+# 0: vehicle
+
+
+
+nc: 1  # number of classes
+names: ['vehicle']
+
+
