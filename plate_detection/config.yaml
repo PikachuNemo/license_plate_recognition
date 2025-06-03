@@ -10,7 +10,6 @@ val: images/train
 # 0: vehicle
 
 
-
 nc: 1  # number of classes
 names: ['vehicle']
 
