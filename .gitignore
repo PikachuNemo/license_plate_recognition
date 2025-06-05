@@ -1,4 +1,8 @@
 # Ignore the vehicle number plate detection directory
 vehicle_number_plate_detection/ 
 
-.venv/
+venv/
+
+videos/
+
+runs/
