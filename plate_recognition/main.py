@@ -6,6 +6,8 @@ from utils import get_car, read_license_plate, write_csv
 
 from sort.sort import *
 
+import easyocr
+
 mot_tracker = Sort()  # initialize SORT tracker
 results = {}  # dictionary to store results for each frame
 
@@ -54,7 +56,6 @@ while ret:
         license_plate_crop = frame[int(y1):int(y2), int(x1):int(x2), :]
         
         # process license plate
-        
         license_plate_crop_gray = cv2.cvtColor(license_plate_crop, cv2.COLOR_BGR2GRAY)  # convert to grayscale
         _, license_plate_crop_thresh = cv2.threshold(license_plate_crop_gray, 64, 255, cv2.THRESH_BINARY_INV)  # apply thresholding
         
@@ -62,8 +63,15 @@ while ret:
         # cv2.imshow('threshold', license_plate_crop_thresh)
         # cv2.waitKey(0)
         
-        # read license plate number
-        license_plate_text, license_plate_text_conf_score = utils.read_license_plate(license_plate_crop_thresh)
+        
+        # detect license plate lines
+        # ocr_results = reader.readtext(license_plate_crop_thresh, detail=1)
+        # plate_lines = utils.detect_plate_lines(license_plate_crop_thresh, ocr_results)
+        
+        
+        # read license plate number 
+        reader = easyocr.Reader(['ne','en'], gpu=True)
+        license_plate_text, license_plate_text_conf_score = read_license_plate(license_plate_crop_thresh, reader)
         
         if license_plate_text is not None:
             results[frame_number][car_id] = {'car': {'bbox': [xcar1, ycar1, xcar2, ycar2]},
