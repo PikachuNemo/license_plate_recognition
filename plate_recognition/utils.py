@@ -1,6 +1,7 @@
 import string
 import easyocr
 import numpy as np
+import re
 
 # note: plate detection model got usable in train-4
 # and recognition test got usable data from test3.csv
@@ -34,22 +35,23 @@ def get_car(license_plate, vehicle_track_ids):
     return -1, -1, -1, -1, -1
 
 
-def read_license_plate(license_plate_crop, reader):
-    """ process license plate based on line configuration """
+def read_license_plate(license_plate_grayscale, reader):
+    """ process grayscaled license plate based on line configuration """
     
-    ocr_results = reader.readtext(license_plate_crop)
+    ocr_results = reader.readtext(license_plate_grayscale)
     
     if not ocr_results:
         return "", 0.0  # Return empty text and no confidence if OCR fails
     
     # determine plate type
-    plate_type = detect_plate_lines(license_plate_crop, ocr_results)
+    plate_type = detect_plate_lines(license_plate_grayscale, ocr_results)
     
     # handle different plate types
     if plate_type == "single_line":
         plate_text = " ".join([text for _, text, _ in ocr_results])
+        plate_text = normalize_text(plate_text) # normalize plate text
         avg_conf = np.mean([conf for _, _, conf in ocr_results]) if ocr_results else 0.0
-        return plate_text, avg_conf
+        
     
     elif plate_type == "multi_line":
         # Get character heights for smart splitting
@@ -58,7 +60,7 @@ def read_license_plate(license_plate_crop, reader):
         
         # Find optimal split point
         y_centers = [(box[0][1] + box[2][1]) / 2 for box, _, _ in ocr_results]
-        optimal_split = np.median(y_centers) if y_centers else license_plate_crop.shape[0] / 2
+        optimal_split = np.median(y_centers) if y_centers else license_plate_grayscale.shape[0] / 2
         
         # Initialize lists
         upper_text = []
@@ -89,14 +91,22 @@ def read_license_plate(license_plate_crop, reader):
                 lower_text.append(text)
                 
         plate_text =  " ".join(upper_text) + " " + " ".join(lower_text)
+        plate_text = normalize_text(plate_text) # normalize plate text
         avg_conf = np.mean([conf for _, _, conf in ocr_results]) if ocr_results else 0.0
-        return plate_text, avg_conf
+        
     
-    # fallback
-    plate_text = " ".join([text for _, text, _ in ocr_results])
-    avg_conf = np.mean([conf for _, _, conf in ocr_results]) if ocr_results else 0.0
-    return plate_text, avg_conf
+    else:
+        # fallback
+        plate_text = " ".join([text for _, text, _ in ocr_results])
+        plate_text = normalize_text(plate_text) # normalize plate text
+        avg_conf = np.mean([conf for _, _, conf in ocr_results]) if ocr_results else 0.0
+        
+    if complies_embosed_format(plate_text):
+        plate_text = correct_embosed_plate(plate_text)
+        return plate_text, avg_conf
 
+    # return plate_text, avg_conf
+    return "", 0.0
 
 
 # def read_license_plate(license_plate_crop):
@@ -159,52 +169,99 @@ def detect_plate_lines(license_plate_crop, results):
 
 
 
-# Mapping dictionaries for character conversion
-dict_char_to_int = {'O': '0',
-                    'D': '0',
-                    'Q': '0',
-                    'I': '1',
-                    'Z': '2',
-                    'J': '3',
-                    'A': '4',
-                    'S': '5',
-                    'G': '6',
-                    'B': '8'
-                    }
-
-dict_int_to_char = {'0': 'O',
-                    '1': 'I',
-                    '2': 'Z',
-                    '3': 'J',
-                    '4': 'A',
-                    '5': 'S',
-                    '6': 'G',
-                    '8': 'B',
-                    '9': 'P'
-                    }
 
 
-# license plate format validation
-# def format_license(text):
-#     """
-#     Format the license plate text by converting characters using the mapping dictionaries.
+# normalizing/standardizing OCR_results
+def normalize_text(text):
+    """Fix OCR-related noise in recognized text."""
+    text = text.replace("‐", "-").replace("–", "-").replace("—", "-")
+    text = re.sub(r"\s+", " ", text.strip())  # collapse multiple spaces to one
+    return text
 
-#     Args:
-#         text (str): License plate text.
 
-#     Returns:
-#         str: Formatted license plate text.
-#     """
-#     license_plate_ = ''
-#     mapping = {0: dict_int_to_char, 1: dict_int_to_char, 4: dict_int_to_char, 5: dict_int_to_char, 6: dict_int_to_char,
-#                2: dict_char_to_int, 3: dict_char_to_int}
-#     for j in [0, 1, 2, 3, 4, 5, 6]:
-#         if text[j] in mapping[j].keys():
-#             license_plate_ += mapping[j][text[j]]
-#         else:
-#             license_plate_ += text[j]
 
-#     return license_plate_
+
+# ------------- license plate format validation for Embosed number plates, older nepali format and province format -------------- #
+
+def correct_embosed_plate(text):
+    """
+    -- for Embosed number plate --
+    Format the license plate text by converting characters using the mapping dictionaries.
+
+    Args:
+        text (str): License plate text.
+
+    Returns:
+        str: Formatted license plate text.
+    """
+    license_plate_ = ''
+    mapping = {0: dict_int_to_char, 1: None, 2: dict_int_to_char, 3: dict_int_to_char, 4: None,
+               5: dict_char_to_int, 6: dict_char_to_int, 7: dict_char_to_int, 8: dict_char_to_int}
+    
+    for j in range(9):
+        if j in mapping:
+            map_entry = mapping[j]
+            if map_entry and text[j] in map_entry:
+                license_plate_ += map_entry[text[j]]
+            else:
+                license_plate_ += text[j]
+        else:
+            license_plate_ += text[j]
+
+    return license_plate_
+
+def complies_embosed_format(text):
+    """
+    -- for English plate format --
+    Match license plate format like 'B AE 5627'
+    
+    Args:
+        text (str): License plate text.
+    Returns:
+        bool: True if the license plate text matches the format, False otherwise.
+    """
+    if len(text) != 9:
+        return False
+
+    if (text[0] in string.ascii_uppercase or text[0] in dict_int_to_char.keys()) and \
+        (text[1] == ' ') and \
+        (text[2] in string.ascii_uppercase or text[1] in dict_int_to_char.keys()) and \
+        (text[3] in string.ascii_uppercase or text[2] in dict_int_to_char.keys()) and \
+        (text[4] == ' ') and \
+        (text[5] in string.digits or text[3] in dict_char_to_int.keys()) and \
+        (text[6] in string.digits or text[4] in dict_char_to_int.keys()) and \
+        (text[7] in string.digits or text[5] in dict_char_to_int.keys()) and \
+        (text[8] in string.digits or text[6] in dict_char_to_int.keys()):
+        return True
+    else:
+        return False
+
+
+
+
+def match_old_format(text):
+    """
+    -- for Old Nepali plate format --
+    Matches plates like: 
+    बा १ च १२३४
+    """
+    pattern = r"[\u0900-\u097F]{1,2}\s*\d{1,2}\s*[\u0900-\u097F]{1,2}\s*\d{1,4}"
+    return bool(re.search(pattern, text))
+
+
+def match_province_format(text):
+    """
+    -- for New Province format --
+    Matches multi-line Nepali plate after joining lines.
+    Example normalized text: 
+    'प्रदेश ३-०२ ००१-च १२३४'
+    """
+    pattern = r"प्रदेश\s*\d{1}-\d{1,2}\s+\d{1,3}[-‐][\u0900-\u097F]{1,2}\s+\d{1,4}"
+    return bool(re.search(pattern, text))
+
+
+### -------------------------------- ###
+
 
 
 
@@ -244,3 +301,29 @@ def write_csv(results, output_path):
                                                             results[frame_number][car_id]['license_plate']['text_score'])
                             )
         f.close()
+
+
+
+# Mapping dictionaries for character conversion
+dict_char_to_int = {'O': '0',
+                    'D': '0',
+                    'Q': '0',
+                    'I': '1',
+                    'Z': '2',
+                    'J': '3',
+                    'A': '4',
+                    'S': '5',
+                    'G': '6',
+                    'B': '8'
+                    }
+
+dict_int_to_char = {'0': 'O',
+                    '1': 'I',
+                    '2': 'Z',
+                    '3': 'J',
+                    '4': 'A',
+                    '5': 'S',
+                    '6': 'G',
+                    '8': 'B',
+                    '9': 'P'
+                    }
