@@ -10,7 +10,7 @@ import re
 from sklearn.cluster import DBSCAN # for density based clustering
 
 # Initialize the OCR reader in nepali and english
-reader = easyocr.Reader(['ne','en'], gpu=True)
+reader = easyocr.Reader(['ne','en', 'hi'], gpu=True)
 
 
 
@@ -43,6 +43,10 @@ def read_license_plate(license_plate_grayscale, reader):
     if not ocr_results:
         return "", 0.0  # Return empty text and no confidence if OCR fails
     
+    # average confidence score
+    avg_conf = np.mean([conf for _, _, conf in ocr_results]) if ocr_results else 0.0
+    
+    
     # determine plate type
     plate_type = detect_plate_lines(license_plate_grayscale, ocr_results)
     
@@ -50,7 +54,7 @@ def read_license_plate(license_plate_grayscale, reader):
     if plate_type == "single_line":
         plate_text = " ".join([text for _, text, _ in ocr_results])
         plate_text = normalize_text(plate_text) # normalize plate text
-        avg_conf = np.mean([conf for _, _, conf in ocr_results]) if ocr_results else 0.0
+        # avg_conf = np.mean([conf for _, _, conf in ocr_results]) if ocr_results else 0.0
         
     
     elif plate_type == "multi_line":
@@ -92,21 +96,32 @@ def read_license_plate(license_plate_grayscale, reader):
                 
         plate_text =  " ".join(upper_text) + " " + " ".join(lower_text)
         plate_text = normalize_text(plate_text) # normalize plate text
-        avg_conf = np.mean([conf for _, _, conf in ocr_results]) if ocr_results else 0.0
+        # avg_conf = np.mean([conf for _, _, conf in ocr_results]) if ocr_results else 0.0
         
-    
     else:
         # fallback
         plate_text = " ".join([text for _, text, _ in ocr_results])
         plate_text = normalize_text(plate_text) # normalize plate text
-        avg_conf = np.mean([conf for _, _, conf in ocr_results]) if ocr_results else 0.0
+        # avg_conf = np.mean([conf for _, _, conf in ocr_results]) if ocr_results else 0.0
         
-    if complies_embosed_format(plate_text):
-        plate_text = correct_embosed_plate(plate_text)
-        return plate_text, avg_conf
+        
+        
+    if is_english(plate_text):
+        if complies_embosed_format(plate_text):
+            plate_text = correct_embosed_plate(plate_text)
+            return plate_text, avg_conf
+    
+    elif is_nepali(plate_text):
+        if match_old_format(plate_text):
+            return plate_text, avg_conf
+        elif match_province_format(plate_text):
+            return plate_text, avg_conf
+        # else:
+        #     # If it doesn't match any known format, return as is
+        #     return plate_text, avg_conf
 
-    # return plate_text, avg_conf
-    return "", 0.0
+    return plate_text, avg_conf
+    # return "", 0.0
 
 
 # def read_license_plate(license_plate_crop):
@@ -245,7 +260,8 @@ def match_old_format(text):
     Matches plates like: 
     बा १ च १२३४
     """
-    pattern = r"[\u0900-\u097F]{1,2}\s*\d{1,2}\s*[\u0900-\u097F]{1,2}\s*\d{1,4}"
+    pattern = r"[\u0900-\u097F]{1,2}\s*[\d\u0966-\u096F]{1,2}\s*[\u0900-\u097F]{1,2}\s*[\d\u0966-\u096F]{1,4}"
+
     return bool(re.search(pattern, text))
 
 
@@ -256,8 +272,35 @@ def match_province_format(text):
     Example normalized text: 
     'प्रदेश ३-०२ ००१-च १२३४'
     """
-    pattern = r"प्रदेश\s*\d{1}-\d{1,2}\s+\d{1,3}[-‐][\u0900-\u097F]{1,2}\s+\d{1,4}"
+    pattern = r"(?:[\u0900-\u097F]+\s*)?प्रदेश\s*[\d\u0966-\u096F]{1}-[\d\u0966-\u096F]{1,2}\s+[\d\u0966-\u096F]{1,3}[-‐][\u0900-\u097F]{1,2}\s+[\d\u0966-\u096F]{1,4}"
+
+
     return bool(re.search(pattern, text))
+
+
+def is_english(text):
+    """ Check if the text contains only English uppercase letters, digits, and spaces.
+    args:
+        text (str): The input text to check.
+    returns:
+        boolean value
+    """
+    return all(
+        char.isascii() and (char.isupper() or char.isdigit() or char.isspace())
+        for char in text
+    )
+
+def is_nepali(text):
+    # Returns True if text contains any Devanagari character (Nepali script)
+    for char in text:
+        if '\u0900' <= char <= '\u097F':
+            return True
+    return False
+
+
+
+
+
 
 
 ### -------------------------------- ###

@@ -7,6 +7,7 @@ from utils import get_car, read_license_plate, write_csv
 from sort.sort import *
 
 import easyocr
+reader = easyocr.Reader(['ne','en', 'hi'], gpu=True)
 
 mot_tracker = Sort()  # initialize SORT tracker
 results = {}  # dictionary to store results for each frame
@@ -28,7 +29,9 @@ ret = True
 while ret:
     frame_number += 1
     ret, frame = cap.read()
-    if ret and frame_number < 10: 
+    
+    # if ret:
+    if ret and frame_number < 100: # limit to first 100 frames for testing
         results[frame_number] = {}
         
         # detect vehicles 
@@ -70,7 +73,6 @@ while ret:
         
         
         # read license plate number 
-        reader = easyocr.Reader(['ne','en'], gpu=True)
         license_plate_text, license_plate_text_conf_score = read_license_plate(license_plate_crop_thresh, reader)
         
         if license_plate_text is not None:
