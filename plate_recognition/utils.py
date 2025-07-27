@@ -120,8 +120,8 @@ def read_license_plate(license_plate_grayscale, reader):
         #     # If it doesn't match any known format, return as is
         #     return plate_text, avg_conf
 
-    return plate_text, avg_conf
-    # return "", 0.0
+    # return plate_text, avg_conf
+    return "", 0.0
 
 
 # def read_license_plate(license_plate_crop):

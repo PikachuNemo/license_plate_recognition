@@ -23,18 +23,51 @@ def draw_border(img, top_left, bottom_right, color=(0, 255, 0), thickness=10, li
 
     return img
 
+interpolated_file_path = 'interpolated_results/test_interpolated.csv'
+results = pd.read_csv(interpolated_file_path)
 
-results = pd.read_csv('./test_interpolated.csv')
+
+"""
+
+# Load camera (0 = default webcam)
+cap = cv2.VideoCapture(0)
+
+# Check if camera opened successfully
+if not cap.isOpened():
+    print("Error: Could not open camera.")
+    exit()
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    # TODO: Pass `frame` to your license plate detection function here
+    # e.g. detect_license_plate(frame)
+
+    # Show live feed (optional for visualization)
+    cv2.imshow("Camera Feed", frame)
+
+    # Exit on 'q' key
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Release camera and close windows
+cap.release()
+cv2.destroyAllWindows()
+
+"""
+
 
 # load video
-video_path = 'sample.mp4'
+video_path = './videos/plate_test.mp4'
 cap = cv2.VideoCapture(video_path)
 
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Specify the codec
 fps = cap.get(cv2.CAP_PROP_FPS)
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-out = cv2.VideoWriter('./out.mp4', fourcc, fps, (width, height))
+out = cv2.VideoWriter('./output/out.mp4', fourcc, fps, (width, height))
 
 license_plate = {}
 for car_id in np.unique(results['car_id']):
@@ -43,7 +76,7 @@ for car_id in np.unique(results['car_id']):
                              'license_plate_number': results[(results['car_id'] == car_id) &
                                                              (results['license_number_score'] == max_)]['license_number'].iloc[0]}
     cap.set(cv2.CAP_PROP_POS_FRAMES, results[(results['car_id'] == car_id) &
-                                             (results['license_number_score'] == max_)]['frame_nmr'].iloc[0])
+                                             (results['license_number_score'] == max_)]['frame_number'].iloc[0])
     ret, frame = cap.read()
 
     x1, y1, x2, y2 = ast.literal_eval(results[(results['car_id'] == car_id) &
@@ -55,7 +88,7 @@ for car_id in np.unique(results['car_id']):
     license_plate[car_id]['license_crop'] = license_crop
 
 
-frame_nmr = -1
+frame_number = -1
 
 cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
@@ -63,9 +96,9 @@ cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 ret = True
 while ret:
     ret, frame = cap.read()
-    frame_nmr += 1
+    frame_number += 1
     if ret:
-        df_ = results[results['frame_nmr'] == frame_nmr]
+        df_ = results[results['frame_number'] == frame_number]
         for row_indx in range(len(df_)):
             # draw car
             car_x1, car_y1, car_x2, car_y2 = ast.literal_eval(df_.iloc[row_indx]['car_bbox'].replace('[ ', '[').replace('   ', ' ').replace('  ', ' ').replace(' ', ','))
@@ -108,8 +141,11 @@ while ret:
         out.write(frame)
         frame = cv2.resize(frame, (1280, 720))
 
-        # cv2.imshow('frame', frame)
-        # cv2.waitKey(0)
+        # Show the frame
+        cv2.imshow('frame', frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
 
 out.release()
 cap.release()

@@ -1,6 +1,7 @@
 import csv
 import numpy as np
 from scipy.interpolate import interp1d
+import os
 
 
 def interpolate_bounding_boxes(data):
@@ -12,8 +13,8 @@ def interpolate_bounding_boxes(data):
 
     interpolated_data = []
     unique_car_ids = np.unique(car_ids)
+    
     for car_id in unique_car_ids:
-
         frame_numbers_ = [p['frame_number'] for p in data if int(float(p['car_id'])) == int(float(car_id))]
         print(frame_numbers_, car_id)
 
@@ -55,7 +56,7 @@ def interpolate_bounding_boxes(data):
         for i in range(len(car_bboxes_interpolated)):
             frame_number = first_frame_number + i
             row = {}
-            row['frame_nmr'] = str(frame_number)
+            row['frame_number'] = str(frame_number)
             row['car_id'] = str(car_id)
             row['car_bbox'] = ' '.join(map(str, car_bboxes_interpolated[i]))
             row['license_plate_bbox'] = ' '.join(map(str, license_plate_bboxes_interpolated[i]))
@@ -67,7 +68,7 @@ def interpolate_bounding_boxes(data):
                 row['license_number_score'] = '0'
             else:
                 # Original row, retrieve values from the input data if available
-                original_row = [p for p in data if int(p['frame_nmr']) == frame_number and int(float(p['car_id'])) == int(float(car_id))][0]
+                original_row = [p for p in data if int(p['frame_number']) == frame_number and int(float(p['car_id'])) == int(float(car_id))][0]
                 row['license_plate_bbox_score'] = original_row['license_plate_bbox_score'] if 'license_plate_bbox_score' in original_row else '0'
                 row['license_number'] = original_row['license_number'] if 'license_number' in original_row else '0'
                 row['license_number_score'] = original_row['license_number_score'] if 'license_number_score' in original_row else '0'
@@ -76,18 +77,35 @@ def interpolate_bounding_boxes(data):
 
     return interpolated_data
 
+# Input file path
+file_path = 'plate_recognition/recognition_test/test.csv'
 
-# Load the CSV file
-with open('test.csv', 'r') as file:
+# Load the input file
+with open(file_path, 'r', encoding='utf-8') as file:
     reader = csv.DictReader(file)
     data = list(reader)
 
 # Interpolate missing data
 interpolated_data = interpolate_bounding_boxes(data)
 
+
+# Prepare output file path
+input_filename = os.path.basename(file_path)                          # test.csv
+filename_wo_ext, ext = os.path.splitext(input_filename)              # test, .csv
+output_filename = filename_wo_ext + '_interpolated' + ext            # test_interpolated.csv
+
+# Ensure output directory exists
+output_dir = 'interpolated_results'
+os.makedirs(output_dir, exist_ok=True)
+
+# Full output path
+output_path = os.path.join(output_dir, output_filename)
+
+
 # Write updated data to a new CSV file
-header = ['frame_nmr', 'car_id', 'car_bbox', 'license_plate_bbox', 'license_plate_bbox_score', 'license_number', 'license_number_score']
-with open('test_interpolated.csv', 'w', newline='') as file:
+header = ['frame_number', 'car_id', 'car_bbox', 'license_plate_bbox', 'license_plate_bbox_score', 'license_number', 'license_number_score']
+with open(output_path, 'w', newline='', encoding='utf-8') as file:
     writer = csv.DictWriter(file, fieldnames=header)
     writer.writeheader()
     writer.writerows(interpolated_data)
+    

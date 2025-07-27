@@ -31,7 +31,7 @@ while ret:
     ret, frame = cap.read()
     
     # if ret:
-    if ret and frame_number < 100: # limit to first 100 frames for testing
+    if ret and frame_number < 200: # limit to first 100 frames for testing
         results[frame_number] = {}
         
         # detect vehicles 
