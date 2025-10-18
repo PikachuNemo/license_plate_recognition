@@ -10,7 +10,7 @@ import re
 from sklearn.cluster import DBSCAN # for density based clustering
 
 # Initialize the OCR reader in nepali and english
-reader = easyocr.Reader(['ne','en', 'hi'], gpu=True)
+reader = easyocr.Reader(['en'], gpu=True)
 
 
 
@@ -33,6 +33,7 @@ def get_car(license_plate, vehicle_track_ids):
         return vehicle_track_ids[car_index]
 
     return -1, -1, -1, -1, -1
+    # return None, None, None, None, -1
 
 
 def read_license_plate(license_plate_grayscale, reader):

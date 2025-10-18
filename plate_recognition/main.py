@@ -7,7 +7,8 @@ from utils import get_car, read_license_plate, write_csv
 from sort.sort import *
 
 import easyocr
-reader = easyocr.Reader(['ne','en', 'hi'], gpu=True)
+reader = easyocr.Reader(['en'], gpu=True)
+# reader = easyocr.Reader(['ne','en', 'hi'], gpu=True)
 
 mot_tracker = Sort()  # initialize SORT tracker
 results = {}  # dictionary to store results for each frame
@@ -31,7 +32,7 @@ while ret:
     ret, frame = cap.read()
     
     # if ret:
-    if ret and frame_number < 200: # limit to first 100 frames for testing
+    if ret and frame_number < 1000: # limit to first 100 frames for testing
         results[frame_number] = {}
         
         # detect vehicles 
