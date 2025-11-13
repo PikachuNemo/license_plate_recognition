@@ -118,12 +118,11 @@ def main():
     reader = easyocr.Reader(['en']) # English language for OCR
 
     # Ensure output directories exist
-    os.makedirs(os.path.join(args.output_dir, 'interpolated_results'), exist_ok=True)
-    os.makedirs(os.path.join(args.output_dir, 'runs', 'detect', 'predict'), exist_ok=True) # For output video
+    os.makedirs(os.path.join('frontend', 'outputs'), exist_ok=True)
 
     # Define paths
     input_video_path = args.video
-    output_video_path = os.path.join(args.output_dir, 'runs', 'detect', 'predict', os.path.basename(input_video_path).replace('.', '_') + '.mp4')
+    output_video_path = os.path.join('frontend', 'outputs', os.path.basename(input_video_path).replace('.', '_') + '.mp4')
     interpolated_csv_path = os.path.join(args.output_dir, 'interpolated_results', 'test_interpolated.csv')
 
     print(f"Processing video: {input_video_path}")
