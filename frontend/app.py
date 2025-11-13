@@ -5,7 +5,7 @@ import easyocr
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
-reader = easyocr.Reader(['en'], gpu=False)
+reader = easyocr.Reader(['en'], gpu=True)
 
 @app.route('/')
 def index():
