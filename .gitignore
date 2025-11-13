@@ -20,6 +20,7 @@ output/
 frontend/outputs/
 frontend/uploads/
 runs/
+uploads/ # Ignore the top-level uploads directory
 
 # Models (if generated and not part of source)
 models/
