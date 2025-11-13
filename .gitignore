@@ -12,6 +12,7 @@ package-lock.json
 # Database
 *.db
 *.sqlite3
+database.db # Explicitly ignore database.db
 
 # Output directories
 results/
@@ -25,3 +26,6 @@ models/
 
 # Gemini specific
 GEMINI.md
+
+# Data directory (often contains large files not suitable for version control)
+data/
