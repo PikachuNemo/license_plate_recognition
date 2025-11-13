@@ -26,6 +26,7 @@ models/
 
 # Gemini specific
 GEMINI.md
+.geminiignore # Ignore Gemini-specific ignore file
 
 # Data directory (often contains large files not suitable for version control)
 data/
