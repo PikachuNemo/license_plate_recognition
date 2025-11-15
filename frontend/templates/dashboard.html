@@ -2,22 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>License Plate and Video Recognition</title>
+  <title>User Dashboard</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <div class="card">
-    <div style="text-align: right; margin-bottom: 10px;">
-        {% if session.get('user_type') == 'admin' %}
-            <a href="{{ url_for('admin_users') }}"><button>Manage Users</button></a>
-        {% endif %}
-        <a href="{{ url_for('logout') }}"><button>Logout</button></a>
+    <div class="header-container">
+        <h1>User Dashboard</h1>
+        <a href="{{ url_for('logout') }}" class="logout-button">Logout</a>
     </div>
-    <h1>License Plate and Video Recognition</h1>
-    <form id="upload-form" enctype="multipart/form-data" action="/recognize" method="post">
-      <input type="file" id="file-input" name="file" accept="image/*,video/*" required><br>
-      <button type="submit">Upload & Recognize</button>
-    </form>
+    <nav>
+        <a href="{{ url_for('index') }}">License Plate Recognition</a>
+    </nav>
 
     {% with messages = get_flashed_messages() %}
         {% if messages %}
@@ -29,43 +25,9 @@
         {% endif %}
     {% endwith %}
 
-    <div id="result-container">
-        {% if output_video_path %}
-            <h2>Video Recognition Result</h2>
-            <video controls width="100%">
-                <source src="{{ url_for('output_video_file', filename=output_video_path.split('/')[-1]) }}" type="video/mp4">
-                Your browser does not support the video tag.
-            </video>
-            {% if recognized_plates %}
-                <h3>Recognized Plates:</h3>
-                <ul>
-                    {% for plate in recognized_plates %}
-                        <li>{{ plate }}</li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>No license plates recognized in the video.</p>
-            {% endif %}
-        {% elif annotated_image_path %}
-            <h2>Image Recognition Result</h2>
-            <img src="{{ url_for('output_video_file', filename=annotated_image_path.split('/')[-1]) }}" alt="Annotated Image" width="100%">
-            {% if image_recognized_plates %}
-                <h3>Recognized Plates:</h3>
-                <ul>
-                    {% for plate in image_recognized_plates %}
-                        <li>{{ plate }}</li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>No license plates recognized in the image.</p>
-            {% endif %}
-        {% endif %}
-    </div>
-  </div>
+    <p>Welcome to your user dashboard!</p>
+    <p>Use the link above to access the license plate recognition feature.</p>
 
-  <script>
-    // This script is no longer needed for form submission as it's now handled by Flask directly
-    // The results are passed via session and rendered by Jinja2
-  </script>
+  </div>
 </body>
 </html>

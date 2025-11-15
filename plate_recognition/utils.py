@@ -9,10 +9,11 @@ import re
 
 from sklearn.cluster import DBSCAN # for density based clustering
 
-# Initialize the OCR reader in nepali and english
+    # Initialize the OCR reader in nepali and english
 reader = easyocr.Reader(['en'], gpu=True)
 
-
+# Define the new regex pattern for license plates
+LICENSE_PLATE_REGEX = re.compile(r"^[A-Z]\s[A-Z]{2}\s\d{4}$")
 
 def get_car(license_plate, vehicle_track_ids):
     """
@@ -83,17 +84,6 @@ def read_license_plate(license_plate_grayscale, reader):
                 lower_text.append(text)
             else:
                 middle_chars.append((box, text))
-        
-        # Distribute middle characters based on proximity
-        for box, text in middle_chars:
-            center_y = (box[0][1] + box[2][1]) / 2
-            upper_dist = abs(center_y - (optimal_split - threshold))
-            lower_dist = abs(center_y - (optimal_split + threshold))
-            
-            if upper_dist < lower_dist:
-                upper_text.append(text)
-            else:
-                lower_text.append(text)
                 
         plate_text =  " ".join(upper_text) + " " + " ".join(lower_text)
         plate_text = normalize_text(plate_text) # normalize plate text
@@ -106,10 +96,40 @@ def read_license_plate(license_plate_grayscale, reader):
         # avg_conf = np.mean([conf for _, _, conf in ocr_results]) if ocr_results else 0.0
         
         
-        
+    
     if is_english(plate_text):
+        print(f"read_license_plate - initial English plate_text: {plate_text!r}")
+        # Remove all spaces first
+        cleaned_plate_text = "".join(plate_text.split())
+        print(f"read_license_plate - cleaned_plate_text: {cleaned_plate_text!r}")
+        
+        # Use a more flexible regex to extract components
+        # This pattern looks for 1 uppercase letter, followed by 2 uppercase letters,
+        # followed by 4 digits, allowing for some flexibility in the input.
+        # Example: B AD2324, BA D2324, BAD2324
+        match = re.match(r"([A-Z])([A-Z]{2})(\d{4})", cleaned_plate_text)
+        
+        if match:
+            print(f"read_license_plate - flexible regex match groups: {match.groups()}")
+            # Reconstruct the plate text in the desired format "X YY ZZZZ"
+            letter1, letters23, digits4 = match.groups()
+            plate_text = f"{letter1} {letters23} {digits4}"
+            print(f"read_license_plate - plate_text after reformatting: {plate_text!r}")
+        else:
+            # If flexible regex doesn't match, keep the cleaned text for strict regex check
+            plate_text = cleaned_plate_text
+            print(f"read_license_plate - plate_text (no flexible match): {plate_text!r}")
+            
+        # Apply the new regex pattern first
+        if LICENSE_PLATE_REGEX.match(plate_text):
+            print(f"read_license_plate - strict regex matched: {plate_text!r}")
+            return plate_text, avg_conf
+        else:
+            print(f"read_license_plate - strict regex DID NOT match: {plate_text!r}")
+        # Fallback to existing format check
         if complies_embosed_format(plate_text):
             plate_text = correct_embosed_plate(plate_text)
+            print(f"read_license_plate - complies_embosed_format matched: {plate_text!r}")
             return plate_text, avg_conf
     
     elif is_nepali(plate_text):
@@ -123,7 +143,6 @@ def read_license_plate(license_plate_grayscale, reader):
 
     # return plate_text, avg_conf
     return "", 0.0
-
 
 # def read_license_plate(license_plate_crop):
 #     """

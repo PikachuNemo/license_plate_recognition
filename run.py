@@ -82,7 +82,7 @@ def main(video_path: str, output_dir: str, output_video_path: str):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='License Plate Recognition System')
-    parser.add_argument('--video', type=str, default='data/videos/plate_test.mp4', help='Path to the input video file')
+    parser.add_argument('--video', type=str, default='data/test3sec.mp4', help='Path to the input video file')
     parser.add_argument('--output', type=str, default='results/', help='Path to the output directory')
     parser.add_argument('--output_video', type=str, default='results/output_video.mp4', help='Path to save the processed video with visualizations')
     args = parser.parse_args()

@@ -6,6 +6,7 @@ from collections import defaultdict
 import cv2
 import pandas as pd
 import ast # Import ast for literal_eval
+import re # Import re module
 
 def parse_bbox(bbox_str):
     """
@@ -103,6 +104,35 @@ def interpolate_bounding_boxes(data, video_path=None):
                 continue
         frame_width, frame_height = int(max_x), int(max_y)
 
+    # --- Start of new logic for unique car_id assignment ---
+    license_to_car_id_map = {}
+    next_car_id = 0
+
+    # First pass: Identify unique license numbers with high scores and assign unique car_ids
+    for index, row in data.iterrows():
+        score = float(row.get('license_number_score', 0))
+        raw_license_number = str(row.get('license_number', '')).strip()
+
+        reformatted_license_number = ""
+        if raw_license_number:
+            cleaned_license_number = "".join(raw_license_number.split()).upper()
+            match = re.match(r"([A-Z])([A-Z]{2})(\d{4})", cleaned_license_number)
+            if match:
+                letter1, letters23, digits4 = match.groups()
+                reformatted_license_number = f"{letter1} {letters23} {digits4}"
+        
+        if score > 0.70 and reformatted_license_number:
+            if reformatted_license_number not in license_to_car_id_map:
+                license_to_car_id_map[reformatted_license_number] = next_car_id
+                next_car_id += 1
+            # Update the car_id in the DataFrame for this row
+            data.loc[index, 'car_id'] = license_to_car_id_map[reformatted_license_number]
+        else:
+            # If score is low or license number is invalid, set car_id to -1 for now
+            # This will be handled by the existing grouping logic later
+            data.loc[index, 'car_id'] = -1
+    # --- End of new logic ---
+
     # Group rows by car_id, skipping -1
     grouped = defaultdict(list)
     for index, row in data.iterrows():
@@ -128,19 +158,36 @@ def interpolate_bounding_boxes(data, video_path=None):
         license_plate_bbox_scores_raw = []
         for r in rows:
             score = float(r.get('license_number_score', 0))
-            if score > 0.70: # Apply threshold here
-                license_numbers_raw.append(r.get('license_number', ''))
+            raw_license_number = str(r.get('license_number', '')).strip() # Ensure it's a string and strip whitespace
+            
+            # --- New string processing logic ---
+            reformatted_license_number = ""
+            if raw_license_number: # Only process if not empty
+                cleaned_license_number = "".join(raw_license_number.split()).upper() # Strip all spaces and convert to uppercase
+                
+                # Regex to extract components: 1 letter, 2 letters, 4 digits
+                match = re.match(r"([A-Z])([A-Z]{2})(\d{4})", cleaned_license_number)
+                
+                if match:
+                    letter1, letters23, digits4 = match.groups()
+                    reformatted_license_number = f"{letter1} {letters23} {digits4}"
+            # --- End new string processing logic ---
+
+            if score > 0.70 and reformatted_license_number: # Only use if score is high and reformatting was successful
+                license_numbers_raw.append(reformatted_license_number)
                 license_number_scores_raw.append(score)
                 license_plate_bbox_scores_raw.append(float(r.get('license_plate_bbox_score', 0)))
             else:
-                license_numbers_raw.append(np.nan) # Use NaN for low-confidence or missing
+                license_numbers_raw.append(np.nan) # Use NaN for low-confidence, missing, or non-conforming
                 license_number_scores_raw.append(np.nan)
                 license_plate_bbox_scores_raw.append(np.nan)
 
         # Convert to pandas Series for ffill/bfill
         ln_series = pd.Series(license_numbers_raw, index=frames)
         ls_series = pd.Series(license_number_scores_raw, index=frames)
-        lp_bbox_s_series = pd.Series(license_plate_bbox_scores_raw, index=frames)
+        lp_bbox_s_series = pd.Series(index=frames, dtype=float) # Initialize with float dtype
+        lp_bbox_s_series.loc[frames] = license_plate_bbox_scores_raw
+
 
         # Forward-fill and then backward-fill to propagate valid license numbers
         ln_series = ln_series.ffill().bfill()

@@ -10,27 +10,64 @@ body {
     }
     .card {
       background: #fff;
-      padding: 30px;
+      padding: 40px; /* Increased padding */
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       text-align: center;
-      width: 400px;
+      width: 600px; /* Increased width */
+      max-width: 90%; /* Ensure responsiveness */
     }
     h1 {
-      margin-bottom: 20px;
+      margin-bottom: 30px; /* Increased margin */
       color: #333;
+      font-size: 2.5em; /* Bigger heading */
+    }
+    .form-group {
+      margin-bottom: 25px; /* Spacing for form elements */
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 1.2em; /* Bigger label text */
+      color: #555;
+      font-weight: bold;
     }
     input[type="file"] {
-      margin: 15px 0;
+      display: block; /* Take full width */
+      width: calc(100% - 22px); /* Adjust for padding/border */
+      padding: 10px;
+      margin: 0 auto; /* Center the input */
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1em;
+      background-color: #f9f9f9;
+      cursor: pointer;
+    }
+    input[type="file"]::file-selector-button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 6px;
+        cursor: pointer;
+        margin-right: 10px;
+        transition: background 0.3s;
+    }
+    input[type="file"]::file-selector-button:hover {
+        background-color: #0056b3;
     }
     button {
       background: #007bff;
       color: white;
       border: none;
-      padding: 10px 20px;
-      border-radius: 6px;
+      padding: 15px 30px; /* Bigger button */
+      border-radius: 8px; /* More rounded */
       cursor: pointer;
       transition: background 0.3s;
+      font-size: 1.2em; /* Bigger button text */
+      width: 100%; /* Full width button */
+      max-width: 300px; /* Max width for button */
+      margin-top: 20px; /* Space above button */
     }
     button:hover {
       background: #0056b3;
@@ -58,3 +95,50 @@ body {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+
+#video-display-container {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.video-wrapper {
+    text-align: center;
+    margin: 10px;
+}
+
+.video-wrapper video {
+    width: 100%;
+    max-width: 480px; /* Adjust as needed */
+    height: auto;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+}
+
+.header-container {
+    
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.logout-button-top-right {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: #dc3545; /* Red color for logout */
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 14px;
+    transition: background 0.3s;
+    z-index: 1000; /* Ensure it's above other content */
+}
+
+.logout-button-top-right:hover {
+    background: #c82333;
+}

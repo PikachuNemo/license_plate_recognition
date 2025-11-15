@@ -29,16 +29,39 @@ class RecognizedPlate(Base):
                 f"car_id={self.car_id}, license_plate_text='{self.license_plate_text}', "
                 f"score={self.license_plate_text_score})>")
 
+from werkzeug.security import generate_password_hash, check_password_hash # Import hashing functions
+
 class User(Base):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True, nullable=False)
-    password = Column(String, nullable=False) # In a real app, store hashed passwords!
+    password_hash = Column(String, nullable=False) # Store hashed passwords
     is_admin = Column(Boolean, default=False)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', is_admin={self.is_admin})>"
+
+def create_initial_users(session):
+    """Creates default admin and user if they don't exist."""
+    if not session.query(User).filter_by(username='admin').first():
+        admin_user = User(username='admin', is_admin=True)
+        admin_user.set_password('admin')
+        session.add(admin_user)
+        logger.info("Created default admin user.")
+
+    if not session.query(User).filter_by(username='user').first():
+        normal_user = User(username='user', is_admin=False)
+        normal_user.set_password('user')
+        session.add(normal_user)
+        logger.info("Created default normal user.")
+    session.commit()
 
 class DatabaseSession:
     _instance = None
@@ -74,6 +97,11 @@ class DatabaseSession:
                 )
                 Base.metadata.create_all(cls._engine) # Create tables if they don't exist
                 cls._session_factory = sessionmaker(bind=cls._engine)
+                
+                # Create initial users if they don't exist
+                with cls.session() as session:
+                    create_initial_users(session)
+
                 logger.info(f"SQLite database engine and session factory initialized for {cls._db_file}")
             except OperationalError as e:
                 logger.error(f"Failed to initialize database due to operational error: {e}")
