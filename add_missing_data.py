@@ -32,9 +32,9 @@ def interpolate_sequence(frames, values, max_width=None, max_height=None):
         coord = values[:, i]
         valid_mask = ~np.isnan(coord)
 
-        # If no valid values for this coordinate, fill with zeros
+        # If no valid values for this coordinate, fill with NaNs
         if valid_mask.sum() == 0:
-            interpolated_values[:, i] = 0
+            interpolated_values[:, i] = np.nan
         else:
             interp_func = interp1d(
                 frames[valid_mask], coord[valid_mask],
@@ -45,12 +45,13 @@ def interpolate_sequence(frames, values, max_width=None, max_height=None):
     # Clamp coordinates to [0, max_width/max_height]
     if max_width is not None and max_height is not None:
         for i, bbox in enumerate(interpolated_values):
-            x1, y1, x2, y2 = bbox
-            x1 = max(0, min(x1, max_width))
-            x2 = max(0, min(x2, max_width))
-            y1 = max(0, min(y1, max_height))
-            y2 = max(0, min(y2, max_height))
-            interpolated_values[i] = [x1, y1, x2, y2]
+            if not np.isnan(bbox).any():
+                x1, y1, x2, y2 = bbox
+                x1 = max(0, min(x1, max_width))
+                x2 = max(0, min(x2, max_width))
+                y1 = max(0, min(y1, max_height))
+                y2 = max(0, min(y2, max_height))
+                interpolated_values[i] = [x1, y1, x2, y2]
 
     return all_frames, interpolated_values
 
@@ -159,6 +160,7 @@ def interpolate_bounding_boxes(data, video_path=None):
                 'license_number_score': full_ls_series.get(f, 0.0), # Use propagated value
                 'license_plate_bbox_score': full_lp_bbox_s_series.get(f, 0.0) # This score is for the LP detection, not OCR
             }
+            print(row)
             interpolated_data.append(row)
 
     return interpolated_data
