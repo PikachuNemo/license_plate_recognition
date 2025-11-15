@@ -5,15 +5,32 @@ import os
 from collections import defaultdict
 import cv2
 import pandas as pd
+import ast # Import ast for literal_eval
+
+def parse_bbox(bbox_str):
+    """
+    Parses a string representation of a bounding box into a list of floats.
+    Handles various string formats by replacing common delimiters with commas.
+    """
+    if pd.isna(bbox_str) or bbox_str == '':
+        return [-1, -1, -1, -1] # Return invalid bbox for NaN or empty string
+    try:
+        # Remove brackets and split by comma
+        cleaned_str = bbox_str.strip('[]')
+        # Handle cases where numbers might be separated by spaces instead of commas
+        if ' ' in cleaned_str and ',' not in cleaned_str:
+            coords = [float(c) for c in cleaned_str.split()]
+        else:
+            coords = [float(c) for c in cleaned_str.split(',')]
+        result = coords
+        return result
+    except (ValueError, SyntaxError) as e:
+        return [-1, -1, -1, -1] # Return invalid bbox if parsing fails
 
 
-def parse_bbox(bbox_input):
-    """Convert bbox string '[x1 y1 x2 y2]' or list to float list."""
-    if isinstance(bbox_input, list):
-        return list(map(float, bbox_input))
-    if isinstance(bbox_input, str):
-        return list(map(float, bbox_input.strip("[]").replace(",", " ").split()))
-    return [] # Return empty list for other types
+
+
+
 
 
 def interpolate_sequence(frames, values, max_width=None, max_height=None):
@@ -35,6 +52,9 @@ def interpolate_sequence(frames, values, max_width=None, max_height=None):
         # If no valid values for this coordinate, fill with NaNs
         if valid_mask.sum() == 0:
             interpolated_values[:, i] = np.nan
+        elif valid_mask.sum() == 1:
+            # If only one valid value, propagate it across all frames
+            interpolated_values[:, i] = coord[valid_mask][0]
         else:
             interp_func = interp1d(
                 frames[valid_mask], coord[valid_mask],
@@ -49,7 +69,7 @@ def interpolate_sequence(frames, values, max_width=None, max_height=None):
                 x1, y1, x2, y2 = bbox
                 x1 = max(0, min(x1, max_width))
                 x2 = max(0, min(x2, max_width))
-                y1 = max(0, min(y1, max_height))
+                y1 = max(0, min(y1, max_width))
                 y2 = max(0, min(y2, max_height))
                 interpolated_values[i] = [x1, y1, x2, y2]
 
@@ -69,7 +89,7 @@ def interpolate_bounding_boxes(data, video_path=None):
     # If no video, infer max width/height from data
     if frame_width is None or frame_height is None:
         max_x, max_y = 0, 0
-        for row in data:
+        for index, row in data.iterrows(): # Iterate using iterrows for pandas DataFrame
             try:
                 car_bbox = parse_bbox(row['car_bbox'])
                 lp_bbox = parse_bbox(row['license_plate_bbox'])
@@ -99,8 +119,8 @@ def interpolate_bounding_boxes(data, video_path=None):
     for car_id, rows in grouped.items():
         rows = sorted(rows, key=lambda r: int(r['frame_number']))
         frames = [int(r['frame_number']) for r in rows]
-        car_bboxes = [parse_bbox(r['car_bbox']) or [-1, -1, -1, -1] for r in rows]
-        lp_bboxes = [parse_bbox(r['license_plate_bbox']) or [-1, -1, -1, -1] for r in rows]
+        car_bboxes = [parse_bbox(row['car_bbox']) for row in rows]
+        lp_bboxes = [parse_bbox(row['license_plate_bbox']) for row in rows]
 
         # Collect license numbers and scores for interpolation
         license_numbers_raw = []
@@ -151,16 +171,19 @@ def interpolate_bounding_boxes(data, video_path=None):
         full_lp_bbox_s_series = full_lp_bbox_s_series.ffill().bfill()
 
         for i, f in enumerate(all_frames):
+            # Replace np.nan with -1 in interpolated bboxes before converting to string
+            car_bbox_processed = [float(x) if not np.isnan(x) else -1.0 for x in car_bboxes_interp[i]]
+            lp_bbox_processed = [float(x) if not np.isnan(x) else -1.0 for x in lp_bboxes_interp[i]]
+
             row = {
                 'frame_number': f,
                 'car_id': car_id,
-                'car_bbox': ' '.join(map(str, car_bboxes_interp[i])),
-                'license_plate_bbox': ' '.join(map(str, lp_bboxes_interp[i])),
+                'car_bbox': str(car_bbox_processed),
+                'license_plate_bbox': str(lp_bbox_processed),
                 'license_number': full_ln_series.get(f, '0'), # Use propagated value
                 'license_number_score': full_ls_series.get(f, 0.0), # Use propagated value
                 'license_plate_bbox_score': full_lp_bbox_s_series.get(f, 0.0) # This score is for the LP detection, not OCR
             }
-            print(row)
             interpolated_data.append(row)
 
     return interpolated_data
