@@ -104,22 +104,27 @@ def interpolate_bounding_boxes(data, video_path=None):
         # Collect license numbers and scores for interpolation
         license_numbers_raw = []
         license_number_scores_raw = []
+        license_plate_bbox_scores_raw = []
         for r in rows:
             score = float(r.get('license_number_score', 0))
             if score > 0.70: # Apply threshold here
                 license_numbers_raw.append(r.get('license_number', ''))
                 license_number_scores_raw.append(score)
+                license_plate_bbox_scores_raw.append(float(r.get('license_plate_bbox_score', 0)))
             else:
                 license_numbers_raw.append(np.nan) # Use NaN for low-confidence or missing
                 license_number_scores_raw.append(np.nan)
+                license_plate_bbox_scores_raw.append(np.nan)
 
         # Convert to pandas Series for ffill/bfill
         ln_series = pd.Series(license_numbers_raw, index=frames)
         ls_series = pd.Series(license_number_scores_raw, index=frames)
+        lp_bbox_s_series = pd.Series(license_plate_bbox_scores_raw, index=frames)
 
         # Forward-fill and then backward-fill to propagate valid license numbers
         ln_series = ln_series.ffill().bfill()
         ls_series = ls_series.ffill().bfill()
+        lp_bbox_s_series = lp_bbox_s_series.ffill().bfill()
 
         # If after ffill/bfill, all license numbers are still NaN, then skip this car_id
         if ln_series.isnull().all():
@@ -132,24 +137,27 @@ def interpolate_bounding_boxes(data, video_path=None):
         # Create a full series for license numbers and scores based on all_frames
         full_ln_series = pd.Series(index=all_frames, dtype=object)
         full_ls_series = pd.Series(index=all_frames, dtype=float)
+        full_lp_bbox_s_series = pd.Series(index=all_frames, dtype=float)
         
         # Fill with known values
         full_ln_series.loc[frames] = ln_series.values
         full_ls_series.loc[frames] = ls_series.values
+        full_lp_bbox_s_series.loc[frames] = lp_bbox_s_series.values
 
         # Propagate again over the full frame range
         full_ln_series = full_ln_series.ffill().bfill()
         full_ls_series = full_ls_series.ffill().bfill()
+        full_lp_bbox_s_series = full_lp_bbox_s_series.ffill().bfill()
 
         for i, f in enumerate(all_frames):
             row = {
-                'frame_number': str(f),
-                'car_id': str(car_id),
+                'frame_number': f,
+                'car_id': car_id,
                 'car_bbox': ' '.join(map(str, car_bboxes_interp[i])),
                 'license_plate_bbox': ' '.join(map(str, lp_bboxes_interp[i])),
-                'license_number': str(full_ln_series.get(f, '0')), # Use propagated value
-                'license_number_score': str(full_ls_series.get(f, '0.0')), # Use propagated value
-                'license_plate_bbox_score': '0' # This score is for the LP detection, not OCR
+                'license_number': full_ln_series.get(f, '0'), # Use propagated value
+                'license_number_score': full_ls_series.get(f, 0.0), # Use propagated value
+                'license_plate_bbox_score': full_lp_bbox_s_series.get(f, 0.0) # This score is for the LP detection, not OCR
             }
             interpolated_data.append(row)
 

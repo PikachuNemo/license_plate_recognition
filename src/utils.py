@@ -66,23 +66,23 @@ def get_car(license_plate, vehicle_track_ids):
 def read_license_plate(license_plate_image, reader):
     """ process pre-processed license plate image and return the raw text """
 
-    # Use paragraph=True to handle multi-line plates. This returns a list of strings.
-    ocr_results = reader.readtext(license_plate_image, paragraph=True)
+    # Use paragraph=False to get individual confidence scores.
+    ocr_results = reader.readtext(license_plate_image, paragraph=False)
 
     if not ocr_results:
         return "", 0.0  # Return empty text and no confidence if OCR fails
 
-    # Join paragraphs (lines) with a newline character
-    plate_text = "\n".join([result[1] for result in ocr_results])
+    # Join text and calculate average confidence
+    plate_text = " ".join([result[1] for result in ocr_results])
+    confidence = np.mean([result[2] for result in ocr_results])
+
     plate_text = normalize_text(plate_text)  # normalize plate text
 
     # Filter for English plates only
     if not is_english(plate_text):
         return "", 0.0 # Return empty if not an English plate
 
-    # When paragraph=True, confidence scores are not available per block.
-    # We'll return 1.0 as a placeholder confidence score indicating success.
-    return plate_text, 1.0
+    return plate_text, confidence
 
 
 # def read_license_plate(license_plate_crop):

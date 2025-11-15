@@ -9,7 +9,8 @@
   <div class="card">
     <h1>License Plate Recognition</h1>
     <form id="upload-form" enctype="multipart/form-data">
-      <input type="file" id="image-input" name="image" accept="image/*" required><br>
+      <label for="video-input">Upload Video File:</label>
+      <input type="file" id="video-input" name="video" accept="video/*" required><br>
       <button type="submit">Upload & Recognize</button>
     </form>
 
@@ -26,14 +27,15 @@
       e.preventDefault();
       const formData = new FormData(form);
 
-      // Show image preview
-      const file = form.image.files[0];
+      // Show video preview
+      const file = form.video.files[0];
       if (file) {
-        const img = document.createElement('img');
-        img.src = URL.createObjectURL(file);
-        img.height = 200;
+        const video = document.createElement('video');
+        video.src = URL.createObjectURL(file);
+        video.height = 200;
+        video.controls = true;
         previewContainer.innerHTML = '';
-        previewContainer.appendChild(img);
+        previewContainer.appendChild(video);
       }
 
       // Show spinner while recognizing
