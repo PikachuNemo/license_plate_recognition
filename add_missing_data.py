@@ -84,7 +84,7 @@ def interpolate_bounding_boxes(data, video_path=None):
 
     # Group rows by car_id, skipping -1
     grouped = defaultdict(list)
-    for row in data:
+    for index, row in data.iterrows():
         try:
             car_id = int(float(row['car_id']))
         except ValueError:

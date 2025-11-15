@@ -11,26 +11,56 @@ from sklearn.cluster import DBSCAN # for density based clustering
 
 
 
+def bb_intersection_over_union(boxA, boxB):
+    # determine the (x, y)-coordinates of the intersection rectangle
+    xA = max(boxA[0], boxB[0])
+    yA = max(boxA[1], boxB[1])
+    xB = min(boxA[2], boxB[2])
+    yB = min(boxA[3], boxB[3])
+
+    # compute the area of intersection rectangle
+    interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+
+    # compute the area of both the prediction and ground-truth
+    # rectangles
+    boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
+    boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
+
+    # compute the intersection over union by taking the intersection
+    # area and dividing it by the sum of prediction + ground-truth
+    # areas - the interesection area
+    iou = interArea / float(boxAArea + boxBArea - interArea)
+
+    # return the intersection over union value
+    return iou
+
+
 def get_car(license_plate, vehicle_track_ids):
     """
-    
+    Assigns a license plate to a vehicle based on the Intersection over Union (IoU).
+
+    Args:
+        license_plate (list): A list containing the bounding box of the license plate [x1, y1, x2, y2].
+        vehicle_track_ids (list): A list of vehicle track IDs.
+
+    Returns:
+        tuple: A tuple containing the bounding box and ID of the assigned vehicle.
     """
-    x1, y1, x2, y2, conf_score, class_id = license_plate
+    x1, y1, x2, y2 = license_plate
 
-    foundIt = False
-    for j in range(len(vehicle_track_ids)):
-        xcar1, ycar1, xcar2, ycar2, car_id = vehicle_track_ids[j]
+    max_iou = 0
+    max_car_id = -1
+    max_car_bbox = [-1, -1, -1, -1] # Initialize with default invalid values
 
-        if x1 > xcar1 and y1 > ycar1 and x2 < xcar2 and y2 < ycar2:
-            car_index = j
-            foundIt = True
-            break
+    for car_track in vehicle_track_ids:
+        car_x1, car_y1, car_x2, car_y2, car_id = car_track
+        iou = bb_intersection_over_union([x1, y1, x2, y2], [car_x1, car_y1, car_x2, car_y2])
+        if iou > max_iou:
+            max_iou = iou
+            max_car_id = car_id
+            max_car_bbox = [car_x1, car_y1, car_x2, car_y2]
 
-    if foundIt:
-        return vehicle_track_ids[car_index]
-
-    return -1, -1, -1, -1, -1
-    # return None, None, None, None, -1
+    return max_car_bbox, max_car_id
 
 
 def read_license_plate(license_plate_image, reader):

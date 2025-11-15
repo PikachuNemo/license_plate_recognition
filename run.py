@@ -37,55 +37,43 @@ def main(video_path: str, output_dir: str, output_video_path: str):
             return None
 
         print(f"[run.py] Starting video processing for {video_path}...")
-        # process_video now returns the path to the raw plate data CSV
+        # Process the video and get raw plate data
         raw_plate_data_path = process_video(video_path, coco_model, license_plate_model, reader, output_video_path)
-        print(f"[run.py] Video processing completed. Raw plate data saved to: {raw_plate_data_path}")
 
-        if raw_plate_data_path is None: # Check if video processing failed
-            print(f"Error: Video processing failed for {video_path}. No raw plate data returned.")
-            return None
+        interpolated_df = None # Initialize to None
 
-        # Read the raw plate data
-        print(f"[run.py] Reading raw plate data from {raw_plate_data_path}...")
-        raw_results_df = pd.read_csv(raw_plate_data_path)
-        print(f"[run.py] Raw results loaded. Total entries: {len(raw_results_df)}")
-        if raw_results_df.empty:
-            print("[run.py] Raw results are empty. No detections found.")
-            return None
+        if raw_plate_data_path:
+            print(f"[run.py] Reading raw plate data from {raw_plate_data_path}...")
+            raw_df = pd.read_csv(raw_plate_data_path)
+            print(f"[run.py] Raw results loaded. Total entries: {len(raw_df)}")
 
-        # Ensure frontend/plate_data/interpolated directory exists
-        interpolated_output_dir = os.path.join('frontend', 'plate_data', 'interpolated')
-        os.makedirs(interpolated_output_dir, exist_ok=True)
+            print("[run.py] Interpolating bounding boxes...")
+            interpolated_df = interpolate_bounding_boxes(raw_df) # Changed to interpolate_bounding_boxes
+            print(f"[run.py] Interpolation completed. Total interpolated entries: {len(interpolated_df)}")
 
-        # Interpolate missing data using the raw results DataFrame
-        print("[run.py] Interpolating bounding boxes...")
-        # interpolate_bounding_boxes expects a list of dictionaries, so convert DataFrame
-        interpolated_results = interpolate_bounding_boxes(raw_results_df.to_dict('records'), video_path)
-        print(f"[run.py] Interpolation completed. Total interpolated entries: {len(interpolated_results)}")
-        if not interpolated_results:
-            print("[run.py] Interpolated results are empty. No data to visualize.")
-            return None
-
-        # Prepare output file path for interpolated results
-        base_name = os.path.basename(video_path)
-        name, ext = os.path.splitext(base_name)
-        interpolated_output_filename = f"{name}_interpolated.csv"
-        interpolated_output_path = os.path.join(interpolated_output_dir, interpolated_output_filename)
-
-        try:
-            print(f"[run.py] Writing interpolated CSV results to {interpolated_output_path}...")
-            write_csv(interpolated_results, interpolated_output_path)
-            print(f"[run.py] Interpolated results saved to {interpolated_output_path}")
-        except Exception as e:
-            print(f"Error writing interpolated CSV results to {interpolated_output_path}: {e}")
-            return None
-        
-        # Visualize the video with interpolated results
-        print(f"[run.py] Starting video visualization to {output_video_path}...")
-        visualize_video(interpolated_output_path, video_path, output_video_path)
-        print(f"[run.py] Output video saved to {output_video_path}")
-        
-        return interpolated_output_path # Return path to interpolated CSV
+        # Save interpolated results
+        if interpolated_df is not None: # Only attempt to write if interpolated_df is not None
+            interpolated_output_dir = os.path.join('frontend', 'plate_data', 'interpolated')
+            os.makedirs(interpolated_output_dir, exist_ok=True)
+            base_name = os.path.basename(video_path)
+            name, _ = os.path.splitext(base_name)
+            interpolated_filename = f"{name}_interpolated.csv"
+            interpolated_output_path = os.path.join(interpolated_output_dir, interpolated_filename)
+            
+            try:
+                # Convert to DataFrame before saving
+                interpolated_df = pd.DataFrame(interpolated_df)
+                interpolated_df.to_csv(interpolated_output_path, index=False)
+                print(f"[run.py] Writing interpolated CSV results to {interpolated_output_path}...")
+            except Exception as e:
+                print(f"Error writing interpolated CSV results to {interpolated_output_path}: {e}")
+            
+            # Visualize the video with interpolated results
+            print(f"[run.py] Starting video visualization to {output_video_path}...")
+            visualize_video(interpolated_output_path, video_path, output_video_path)
+            print(f"[run.py] Output video saved to {output_video_path}")
+            
+            return interpolated_output_path # Return path to interpolated CSV
     except Exception as e:
         print(f"An unexpected error occurred in main function: {e}")
         return None
