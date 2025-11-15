@@ -8,10 +8,11 @@ import shutil
 import subprocess
 from datetime import datetime
 import json
+import pandas as pd # Added pandas import
 
-from utils import get_car, read_license_plate, write_csv
-from sort.sort import Sort
-from database import DatabaseSession, RecognizedPlate # Import database classes
+from .utils import get_car, read_license_plate, write_csv
+from .sort.sort import Sort
+from .database import DatabaseSession, RecognizedPlate # Import database classes
 
 def process_video(video_path: str, coco_model, license_plate_model, reader, output_video_path: str = None):
     """
@@ -31,6 +32,7 @@ def process_video(video_path: str, coco_model, license_plate_model, reader, outp
 
     temp_dir = None
     processed_video_path = video_path # Default to original path
+    raw_plate_data_list = [] # New list to store raw plate data
 
     try:
         # Initialize VideoCapture with the original video path
@@ -88,7 +90,7 @@ def process_video(video_path: str, coco_model, license_plate_model, reader, outp
         # Reset video capture to the beginning for actual processing
         cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
-        results = {}
+        # results = {} # No longer needed as a dict of dicts
         frame_number = 0
 
         # Initialize video writer
@@ -117,110 +119,155 @@ def process_video(video_path: str, coco_model, license_plate_model, reader, outp
         else: # If output_video_path is not provided, we can't write a video
             return None # Indicate failure to produce an output video
 
-        # Initialize SORT tracker
-        mot_tracker = Sort()
+        # Initialize SORT trackers for both cars and license plates
+        mot_tracker_cars = Sort()
+        mot_tracker_license_plates = Sort()
+
+        # Define vehicle classes for coco_model (e.g., car, truck, bus, motorcycle)
+        vehicle_classes = [2, 3, 5, 7] # COCO classes for car, motorcycle, bus, truck
 
         # read frames
         frame_nmr = -1
-        # The 'ret' variable from the initial read is not used here,
-        # the loop's 'ret' will be updated by cap.read()
-        try:
-            with DatabaseSession.session() as db_session: # Start a database session
-                while True: # Loop indefinitely until break
-                    frame_nmr += 1
-                    ret, frame = cap.read()
-                    if not ret:
-                        print(f"[video_processing] Warning: cap.read() returned False for frame {frame_nmr}. End of video or read error.")
-                        break # Exit loop if no more frames
+        try: # Re-introducing the try block
+            # with DatabaseSession.session() as db_session: # Start a database session - Commented out for now
+            while True: # Loop indefinitely until break
+                frame_nmr += 1
+                ret, frame = cap.read()
+                if not ret:
+                    print(f"[video_processing] Warning: cap.read() returned False for frame {frame_nmr}. End of video or read error.")
+                    break # Exit loop if no more frames
+                print(f"[video_processing] Processing frame {frame_nmr}")
+                
+                original_frame = frame.copy() # Keep a copy of the original frame for drawing and writing
+                
+                # Resize frame for model inference
+                resized_frame = cv2.resize(frame, (640, 640))
+                
+                # results[frame_nmr] = {} # No longer needed
+                
+                # 1. Detect cars using coco_model
+                car_detections = coco_model(resized_frame)[0]
+                print(f"[video_processing] Frame {frame_nmr}: Found {len(car_detections.boxes.data.tolist())} raw car detections.")
+                cars_to_track = []
+                for car_det in car_detections.boxes.data.tolist():
+                    x1, y1, x2, y2, score, class_id = car_det
+                    if int(class_id) in vehicle_classes and score > 0.5: # Confidence threshold for cars
+                        cars_to_track.append([x1, y1, x2, y2, score])
+                
+                # Update car tracker
+                if len(cars_to_track) > 0:
+                    car_track_ids = mot_tracker_cars.update(np.asarray(cars_to_track))
+                else:
+                    car_track_ids = mot_tracker_cars.update(np.empty((0, 5)))
+                print(f"[video_processing] Frame {frame_nmr}: Tracking {len(car_track_ids)} cars.")
+                
+                # 2. Detect license plates using license_plate_model
+                license_plate_detections = license_plate_model(resized_frame)[0]
+                print(f"[video_processing] Frame {frame_nmr}: Found {len(license_plate_detections.boxes.data.tolist())} raw license plate detections.")
+                license_plates_to_track = []
+                for lp_det in license_plate_detections.boxes.data.tolist():
+                    x1, y1, x2, y2, score, class_id = lp_det
+                    if score > 0.7: # Confidence threshold for license plates
+                        license_plates_to_track.append([x1, y1, x2, y2, score])
+                
+                # Update license plate tracker
+                if len(license_plates_to_track) > 0:
+                    license_plate_track_ids = mot_tracker_license_plates.update(np.asarray(license_plates_to_track))
+                else:
+                    license_plate_track_ids = mot_tracker_license_plates.update(np.empty((0, 5)))
+                print(f"[video_processing] Frame {frame_nmr}: Tracking {len(license_plate_track_ids)} license plates.")
+
+                # Store scaled car and license plate bboxes with their IDs
+                scaled_cars = []
+                for car_track in car_track_ids:
+                    x1_c, y1_c, x2_c, y2_c, car_id = car_track
+                    scaled_cars.append([
+                        int(x1_c * (width / 640)), int(y1_c * (height / 640)),
+                        int(x2_c * (width / 640)), int(y2_c * (height / 640)),
+                        car_id
+                    ])
+
+                for lp_track in license_plate_track_ids:
+                    x1_lp, y1_lp, x2_lp, y2_lp, lp_id = lp_track
                     
-                    original_frame = frame.copy() # Keep a copy of the original frame for drawing and writing
-                    
-                    # Resize frame for model inference
-                    resized_frame = cv2.resize(frame, (640, 640))
-                    
-                    results[frame_nmr] = {}
-                    
-                    # detect license plates on the resized frame
-                    license_plates = license_plate_model(resized_frame)[0]
-                    
-                    detections_ = []
-                    for license_plate in license_plates.boxes.data.tolist():
-                        x1, y1, x2, y2, score, class_id = license_plate
-                        if score > 0.7: # Apply confidence threshold
-                            detections_.append([x1, y1, x2, y2, score])
+                    # Scale license plate coordinates
+                    x1_lp_scaled = int(x1_lp * (width / 640))
+                    y1_lp_scaled = int(y1_lp * (height / 640))
+                    x2_lp_scaled = int(x2_lp * (width / 640))
+                    y2_lp_scaled = int(y2_lp * (height / 640))
 
-                    # update tracker
-                    if len(detections_) > 0:
-                        print(f"[video_processing] Detections found at frame {frame_nmr}: {len(detections_)}")
-                        track_ids = mot_tracker.update(np.asarray(detections_))
+                    # Clip coordinates to ensure they are within frame bounds
+                    x1_lp_scaled = max(0, x1_lp_scaled)
+                    y1_lp_scaled = max(0, y1_lp_scaled)
+                    x2_lp_scaled = min(width, x2_lp_scaled)
+                    y2_lp_scaled = min(height, y2_lp_scaled)
 
-                        for track_id in track_ids:
-                            x1_resized, y1_resized, x2_resized, y2_resized, car_id = track_id
-                            
-                            # Scale coordinates back to original frame dimensions
-                            x1 = int(x1_resized * (width / 640))
-                            y1 = int(y1_resized * (height / 640))
-                            x2 = int(x2_resized * (width / 640))
-                            y2 = int(y2_resized * (height / 640))
+                    # Associate license plate with a car
+                    print(f"[video_processing] Frame {frame_nmr}, LP ID {lp_id}: Attempting to associate with car.")
+                    car_bbox_for_lp, car_id_for_lp = get_car(
+                        [x1_lp_scaled, y1_lp_scaled, x2_lp_scaled, y2_lp_scaled],
+                        scaled_cars
+                    )
+                    print(f"[video_processing] Frame {frame_nmr}, LP ID {lp_id}: Associated with Car ID {car_id_for_lp}.")
 
-                            # Clip coordinates to ensure they are within frame bounds
-                            x1 = max(0, x1)
-                            y1 = max(0, y1)
-                            x2 = min(width, x2)
-                            y2 = min(height, y2)
+                    if car_id_for_lp != -1: # If a car is found for this license plate
+                        # crop license plate from the original frame
+                        license_plate_crop = original_frame[y1_lp_scaled:y2_lp_scaled, x1_lp_scaled:x2_lp_scaled, :]
 
-                            # crop license plate from the original frame
-                            license_plate_crop = original_frame[int(y1):int(y2), int(x1):int(x2), :]
+                        # Skip processing if the crop is empty or malformed
+                        if license_plate_crop.size == 0 or license_plate_crop.shape[0] == 0 or license_plate_crop.shape[1] == 0 or license_plate_crop.ndim < 3:
+                            print(f"[video_processing] Warning: Skipping malformed license plate crop at frame {frame_nmr} for LP ID {lp_id}. Shape: {license_plate_crop.shape}")
+                            continue
+                        print(f"[video_processing] Frame {frame_nmr}, LP ID {lp_id}: license_plate_crop shape: {license_plate_crop.shape}")
+                        # process license plate
+                        license_plate_crop_gray = cv2.cvtColor(license_plate_crop, cv2.COLOR_BGR2GRAY)
+                        blurred = cv2.GaussianBlur(license_plate_crop_gray, (5, 5), 0)
+                        _, license_plate_crop_thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
-                            # Skip processing if the crop is empty
-                            if license_plate_crop.size == 0:
-                                print(f"[video_processing] Warning: Skipping empty license plate crop at frame {frame_nmr}.")
-                                continue
+                        # read license plate text
+                        license_plate_text, license_plate_text_score = read_license_plate(license_plate_crop_thresh, reader)
+                        print(f"[video_processing] Frame {frame_nmr}, Car ID {car_id_for_lp}, LP ID {lp_id}: Recognized text '{license_plate_text}' with score {license_plate_text_score}.")
 
-                            # process license plate
-                            license_plate_crop_gray = cv2.cvtColor(license_plate_crop, cv2.COLOR_BGR2GRAY)
-                            blurred = cv2.GaussianBlur(license_plate_crop_gray, (5, 5), 0) # Add blur for better thresholding
-                            _, license_plate_crop_thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+                        if license_plate_text is not None:
+                            # Collect raw data for later saving
+                            raw_plate_data_list.append({
+                                'frame_number': frame_nmr,
+                                'car_id': car_id_for_lp,
+                                'car_bbox': car_bbox_for_lp,
+                                'license_plate_bbox': [x1_lp_scaled, y1_lp_scaled, x2_lp_scaled, y2_lp_scaled],
+                                'license_plate_bbox_score': lp_track[4],
+                                'license_number': license_plate_text,
+                                'license_number_score': license_plate_text_score
+                            })
 
-                            # read license plate text
-                            license_plate_text, license_plate_text_score = read_license_plate(license_plate_crop_thresh, reader)
-
-                            if license_plate_text is not None:
-                                results[frame_nmr][car_id] = {'car': {'bbox': [x1, y1, x2, y2]},
-                                                              'license_plate': {'bbox': [x1, y1, x2, y2],
-                                                                                'text': license_plate_text,
-                                                                                'bbox_score': score,
-                                                                                'text_score': license_plate_text_score}}
-                                # Draw visualizations on the original frame
-                                cv2.rectangle(original_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-                                cv2.putText(original_frame, f"ID: {int(car_id)} - {license_plate_text}", (int(x1), int(y1) - 10),
-                                            cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-
-                                # Store recognized plate data in the database
-                                recognized_plate_entry = RecognizedPlate(
-                                    timestamp=datetime.now().isoformat(),
-                                    video_path=video_path,
-                                    frame_number=frame_nmr,
-                                    car_id=int(car_id),
-                                    license_plate_text=license_plate_text,
-                                    license_plate_text_score=float(license_plate_text_score),
-                                    license_plate_bbox=json.dumps([x1, y1, x2, y2]) # Store bbox as JSON string
-                                )
-                                db_session.add(recognized_plate_entry)
-
-                    if video_writer:
-                        video_writer.write(original_frame)
+                if video_writer:
+                    video_writer.write(original_frame)
         except Exception as e:
             print(f"An error occurred during video processing loop: {e}")
-            # Optionally re-raise the exception if you want it to propagate
-            # raise
+            raise # Re-raise the exception to propagate it
         finally:
-            print(f"[video_processing] Finished processing {len(results.keys())} frames.")
+            print(f"[video_processing] Finished processing {frame_nmr} frames.")
             cap.release()
             if video_writer:
                 print("[video_processing] Releasing video writer.")
                 video_writer.release()
-        return results
+            
+            # Save raw_plate_data_list to CSV
+            if raw_plate_data_list:
+                raw_data_output_dir = os.path.join('frontend', 'plate_data', 'raw_plate_data')
+                os.makedirs(raw_data_output_dir, exist_ok=True)
+                base_name = os.path.basename(video_path)
+                name, _ = os.path.splitext(base_name)
+                raw_data_filename = f"{name}_raw_plate_data.csv"
+                raw_data_output_path = os.path.join(raw_data_output_dir, raw_data_filename)
+                
+                raw_df = pd.DataFrame(raw_plate_data_list)
+                raw_df.to_csv(raw_data_output_path, index=False)
+                print(f"[video_processing] Raw plate data saved to {raw_data_output_path}")
+                return raw_data_output_path # Return the path to the raw data CSV
+            else:
+                print("[video_processing] No raw plate data collected.")
+                return None
     finally:
         if temp_dir and os.path.exists(temp_dir):
             print(f"[video_processing] Cleaning up temporary directory: {temp_dir}")

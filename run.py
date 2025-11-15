@@ -3,10 +3,13 @@ import os
 import easyocr
 from ultralytics import YOLO
 import torch
+import pandas as pd # Import pandas
 
 from src.utils import write_csv
 from src.video_processing import process_video
-from src.database import DatabaseSession # Import DatabaseSession
+# from src.database import DatabaseSession # Import DatabaseSession - Commented out
+from add_missing_data import interpolate_bounding_boxes
+from visualize import visualize_video
 
 def main(video_path: str, output_dir: str, output_video_path: str):
     """
@@ -17,46 +20,77 @@ def main(video_path: str, output_dir: str, output_video_path: str):
         output_dir (str): Path to the directory to save the output CSV file.
         output_video_path (str): Path to save the processed video with visualizations.
     """
-    # Initialize the database session with a specific file path
-    db_file_path = os.path.join(output_dir, 'license_plates.db')
-    DatabaseSession(db_file=db_file_path)
+    # Initialize the database session with a specific file path - Commented out
+    # db_file_path = os.path.join(output_dir, 'license_plates.db')
+    # DatabaseSession(db_file=db_file_path)
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
 
-    reader = easyocr.Reader(['en', 'ne'], gpu=torch.cuda.is_available())
-    coco_model = YOLO('src/plate_detection/yolov8n.pt').to(device)
-    license_plate_model = YOLO('models/best.pt').to(device)
+    reader = easyocr.Reader(['en'], gpu=torch.cuda.is_available())
+    coco_model = YOLO('plate_detection/yolov8n.pt').to(device)
+    license_plate_model = YOLO('plate_detection/best_t4.pt').to(device)
 
     try:
         if not os.path.exists(video_path):
             print(f"Error: Video file not found at {video_path}")
             return None
 
-        results = process_video(video_path, coco_model, license_plate_model, reader, output_video_path)
+        print(f"[run.py] Starting video processing for {video_path}...")
+        # process_video now returns the path to the raw plate data CSV
+        raw_plate_data_path = process_video(video_path, coco_model, license_plate_model, reader, output_video_path)
+        print(f"[run.py] Video processing completed. Raw plate data saved to: {raw_plate_data_path}")
 
-        if results is None: # Check if video processing failed
-            print(f"Error: Video processing failed for {video_path}.")
+        if raw_plate_data_path is None: # Check if video processing failed
+            print(f"Error: Video processing failed for {video_path}. No raw plate data returned.")
             return None
 
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        # Read the raw plate data
+        print(f"[run.py] Reading raw plate data from {raw_plate_data_path}...")
+        raw_results_df = pd.read_csv(raw_plate_data_path)
+        print(f"[run.py] Raw results loaded. Total entries: {len(raw_results_df)}")
+        if raw_results_df.empty:
+            print("[run.py] Raw results are empty. No detections found.")
+            return None
 
-        output_path = os.path.join(output_dir, 'results.csv')
+        # Ensure frontend/plate_data/interpolated directory exists
+        interpolated_output_dir = os.path.join('frontend', 'plate_data', 'interpolated')
+        os.makedirs(interpolated_output_dir, exist_ok=True)
+
+        # Interpolate missing data using the raw results DataFrame
+        print("[run.py] Interpolating bounding boxes...")
+        # interpolate_bounding_boxes expects a list of dictionaries, so convert DataFrame
+        interpolated_results = interpolate_bounding_boxes(raw_results_df.to_dict('records'), video_path)
+        print(f"[run.py] Interpolation completed. Total interpolated entries: {len(interpolated_results)}")
+        if not interpolated_results:
+            print("[run.py] Interpolated results are empty. No data to visualize.")
+            return None
+
+        # Prepare output file path for interpolated results
+        base_name = os.path.basename(video_path)
+        name, ext = os.path.splitext(base_name)
+        interpolated_output_filename = f"{name}_interpolated.csv"
+        interpolated_output_path = os.path.join(interpolated_output_dir, interpolated_output_filename)
+
         try:
-            print(f"[main] Results before writing CSV: {results}") # Added print statement
-            write_csv(results, output_path)
-            print(f"Results saved to {output_path}")
+            print(f"[run.py] Writing interpolated CSV results to {interpolated_output_path}...")
+            write_csv(interpolated_results, interpolated_output_path)
+            print(f"[run.py] Interpolated results saved to {interpolated_output_path}")
         except Exception as e:
-            print(f"Error writing CSV results to {output_path}: {e}")
-            return None        
-        print(f"Output video saved to {output_video_path}")
-        return output_video_path
+            print(f"Error writing interpolated CSV results to {interpolated_output_path}: {e}")
+            return None
+        
+        # Visualize the video with interpolated results
+        print(f"[run.py] Starting video visualization to {output_video_path}...")
+        visualize_video(interpolated_output_path, video_path, output_video_path)
+        print(f"[run.py] Output video saved to {output_video_path}")
+        
+        return interpolated_output_path # Return path to interpolated CSV
     except Exception as e:
         print(f"An unexpected error occurred in main function: {e}")
         return None
     finally:
-        DatabaseSession.close() # Close the database connection when done
+        pass # DatabaseSession.close() # Close the database connection when done - Commented out
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='License Plate Recognition System')
