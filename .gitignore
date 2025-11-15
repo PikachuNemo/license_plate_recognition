@@ -31,3 +31,11 @@ GEMINI.md
 
 # Data directory (often contains large files not suitable for version control)
 data/
+
+# Untracked files from git status
+.geminiignore
+app.py
+frontend/plate_data/
+frontend/temp_results/
+src/sort/__init__.py
+src/sort/sort/
