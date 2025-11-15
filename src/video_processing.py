@@ -10,7 +10,7 @@ from datetime import datetime
 import json
 import pandas as pd # Added pandas import
 
-from .utils import get_car, read_license_plate, write_csv
+from .utils import get_car, read_license_plate, write_csv, scale_bbox, get_iou
 from .sort.sort import Sort
 from .database import DatabaseSession, RecognizedPlate # Import database classes
 
@@ -107,7 +107,7 @@ def process_video(video_path: str, coco_model, license_plate_model, reader, outp
             
             if fps == 0 or width == 0 or height == 0:
                 print(f"[video_processing] Warning: Invalid video properties detected. FPS={fps}, Width={width}, Height={height}. Cannot create video writer.")
-                return None # Return None if video properties are invalid
+                return None # Return None if video properties is invalid
             else:
                 try:
                     video_writer = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
@@ -167,79 +167,62 @@ def process_video(video_path: str, coco_model, license_plate_model, reader, outp
                 license_plates_to_track = []
                 for lp_det in license_plate_detections.boxes.data.tolist():
                     x1, y1, x2, y2, score, class_id = lp_det
-                    if score > 0.7: # Confidence threshold for license plates
-                        license_plates_to_track.append([x1, y1, x2, y2, score])
+                    license_plates_to_track.append([x1, y1, x2, y2, score])
                 
                 # Update license plate tracker
                 if len(license_plates_to_track) > 0:
-                    license_plate_track_ids = mot_tracker_license_plates.update(np.asarray(license_plates_to_track))
+                    license_plates_tracks = mot_tracker_license_plates.update(np.asarray(license_plates_to_track))
                 else:
-                    license_plate_track_ids = mot_tracker_license_plates.update(np.empty((0, 5)))
-                print(f"[video_processing] Frame {frame_nmr}: Tracking {len(license_plate_track_ids)} license plates.")
+                    license_plates_tracks = mot_tracker_license_plates.update(np.empty((0, 5)))
+                print(f"[video_processing] Frame {frame_nmr}: Tracking {len(license_plates_tracks)} license plates.")
 
-                # Store scaled car and license plate bboxes with their IDs
-                scaled_cars = []
+                original_frame_width = frame.shape[1]
+                original_frame_height = frame.shape[0]
+
                 for car_track in car_track_ids:
-                    x1_c, y1_c, x2_c, y2_c, car_id = car_track
-                    scaled_cars.append([
-                        int(x1_c * (width / 640)), int(y1_c * (height / 640)),
-                        int(x2_c * (width / 640)), int(y2_c * (height / 640)),
-                        car_id
-                    ])
+                    x1_car, y1_car, x2_car, y2_car, car_id = car_track
+                    car_bbox = [x1_car, y1_car, x2_car, y2_car]
 
-                for lp_track in license_plate_track_ids:
-                    x1_lp, y1_lp, x2_lp, y2_lp, lp_id = lp_track
-                    
-                    # Scale license plate coordinates
-                    x1_lp_scaled = int(x1_lp * (width / 640))
-                    y1_lp_scaled = int(y1_lp * (height / 640))
-                    x2_lp_scaled = int(x2_lp * (width / 640))
-                    y2_lp_scaled = int(y2_lp * (height / 640))
-
-                    # Clip coordinates to ensure they are within frame bounds
-                    x1_lp_scaled = max(0, x1_lp_scaled)
-                    y1_lp_scaled = max(0, y1_lp_scaled)
-                    x2_lp_scaled = min(width, x2_lp_scaled)
-                    y2_lp_scaled = min(height, y2_lp_scaled)
-
-                    # Associate license plate with a car
-                    print(f"[video_processing] Frame {frame_nmr}, LP ID {lp_id}: Attempting to associate with car.")
-                    car_bbox_for_lp, car_id_for_lp = get_car(
-                        [x1_lp_scaled, y1_lp_scaled, x2_lp_scaled, y2_lp_scaled],
-                        scaled_cars
+                    # Scale car bbox to original frame size for IoU calculation
+                    x1_car_scaled, y1_car_scaled, x2_car_scaled, y2_car_scaled = scale_bbox(
+                        x1_car, y1_car, x2_car, y2_car,
+                        original_frame_width, original_frame_height,
+                        resized_frame.shape[1], resized_frame.shape[0]
                     )
-                    print(f"[video_processing] Frame {frame_nmr}, LP ID {lp_id}: Associated with Car ID {car_id_for_lp}.")
+                    car_bbox_scaled = [x1_car_scaled, y1_car_scaled, x2_car_scaled, y2_car_scaled]
 
-                    if car_id_for_lp != -1: # If a car is found for this license plate
-                        # crop license plate from the original frame
-                        license_plate_crop = original_frame[y1_lp_scaled:y2_lp_scaled, x1_lp_scaled:x2_lp_scaled, :]
+                    # Find associated license plate
+                    for lp_track in license_plates_tracks:
+                        x1_lp, y1_lp, x2_lp, y2_lp, lp_id = lp_track
 
-                        # Skip processing if the crop is empty or malformed
-                        if license_plate_crop.size == 0 or license_plate_crop.shape[0] == 0 or license_plate_crop.shape[1] == 0 or license_plate_crop.ndim < 3:
-                            print(f"[video_processing] Warning: Skipping malformed license plate crop at frame {frame_nmr} for LP ID {lp_id}. Shape: {license_plate_crop.shape}")
-                            continue
-                        print(f"[video_processing] Frame {frame_nmr}, LP ID {lp_id}: license_plate_crop shape: {license_plate_crop.shape}")
-                        # process license plate
-                        license_plate_crop_gray = cv2.cvtColor(license_plate_crop, cv2.COLOR_BGR2GRAY)
-                        blurred = cv2.GaussianBlur(license_plate_crop_gray, (5, 5), 0)
-                        _, license_plate_crop_thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+                        # Scale license plate bbox to original frame size for IoU calculation
+                        x1_lp_scaled, y1_lp_scaled, x2_lp_scaled, y2_lp_scaled = scale_bbox(
+                            x1_lp, y1_lp, x2_lp, y2_lp,
+                            original_frame_width, original_frame_height,
+                            resized_frame.shape[1], resized_frame.shape[0]
+                        )
+                        lp_bbox_scaled = [x1_lp_scaled, y1_lp_scaled, x2_lp_scaled, y2_lp_scaled]
 
-                        # read license plate text
-                        license_plate_text, license_plate_text_score = read_license_plate(license_plate_crop_thresh, reader)
-                        print(f"[video_processing] Frame {frame_nmr}, Car ID {car_id_for_lp}, LP ID {lp_id}: Recognized text '{license_plate_text}' with score {license_plate_text_score}.")
+                        if get_iou(car_bbox_scaled, lp_bbox_scaled) > 0: # If license plate is within car bbox
+                            # Crop license plate
+                            license_plate_crop = original_frame[int(y1_lp_scaled):int(y2_lp_scaled), int(x1_lp_scaled):int(x2_lp_scaled), :]
+                            
+                            # Read license plate text and score
+                            license_plate_text, license_plate_text_score = read_license_plate(license_plate_crop, reader)
+                            
+                            print(f"[video_processing] Frame {frame_nmr}, Car ID {car_id}, LP ID {lp_id}: Recognized text '{license_plate_text}' with score {license_plate_text_score}.")
 
-                        if license_plate_text is not None:
-                            # Collect raw data for later saving
                             raw_plate_data_list.append({
                                 'frame_number': frame_nmr,
-                                'car_id': car_id_for_lp,
-                                'car_bbox': car_bbox_for_lp,
-                                'license_plate_bbox': [x1_lp_scaled, y1_lp_scaled, x2_lp_scaled, y2_lp_scaled],
-                                'license_plate_bbox_score': lp_track[4],
+                                'car_id': car_id,
+                                'car_bbox': car_bbox_scaled,
+                                'license_plate_bbox': lp_bbox_scaled,
+                                'license_plate_bbox_score': lp_det[4],
                                 'license_number': license_plate_text,
                                 'license_number_score': license_plate_text_score
                             })
-
+                            break # Move to next car after finding a license plate
+                
                 if video_writer:
                     video_writer.write(original_frame)
         except Exception as e:

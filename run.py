@@ -28,8 +28,8 @@ def main(video_path: str, output_dir: str, output_video_path: str):
     print(f"Using device: {device}")
 
     reader = easyocr.Reader(['en'], gpu=torch.cuda.is_available())
-    coco_model = YOLO('plate_detection/yolov8n.pt').to(device)
-    license_plate_model = YOLO('plate_detection/best_t4.pt').to(device)
+    coco_model = YOLO('src/plate_detection/yolov8n.pt').to(device)
+    license_plate_model = YOLO('src/plate_detection/detect_train/train4/weights/last.pt').to(device)
 
     try:
         if not os.path.exists(video_path):

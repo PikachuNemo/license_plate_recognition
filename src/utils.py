@@ -2,6 +2,8 @@ import string
 import easyocr
 import numpy as np
 import re
+import pandas as pd
+from collections import defaultdict
 
 # note: plate detection model got usable in train-4
 # and recognition test got usable data from test3.csv
@@ -11,7 +13,7 @@ from sklearn.cluster import DBSCAN # for density based clustering
 
 
 
-def bb_intersection_over_union(boxA, boxB):
+def get_iou(boxA, boxB):
     # determine the (x, y)-coordinates of the intersection rectangle
     xA = max(boxA[0], boxB[0])
     yA = max(boxA[1], boxB[1])
@@ -68,6 +70,8 @@ def read_license_plate(license_plate_image, reader):
 
     # Use paragraph=False to get individual confidence scores.
     ocr_results = reader.readtext(license_plate_image, paragraph=False)
+
+
 
     if not ocr_results:
         return "", 0.0  # Return empty text and no confidence if OCR fails
@@ -333,3 +337,95 @@ dict_int_to_char = {'0': 'O',
                     '8': 'B',
                     '9': 'P'
                     }
+
+
+def interpolate_license_plates(raw_plate_data_list):
+    """
+    Interpolates missing license plate readings for each car_id across frames.
+    If multiple readings exist for a car_id in a frame, the one with the highest
+    confidence score is chosen. Missing readings are filled using forward fill,
+    then backward fill.
+
+    Args:
+        raw_plate_data_list (list): A list of dictionaries, where each dictionary
+                                     represents a raw license plate detection.
+
+    Returns:
+        list: A list of dictionaries with interpolated license plate data.
+    """
+    if not raw_plate_data_list:
+        return []
+
+    df = pd.DataFrame(raw_plate_data_list)
+
+    # Ensure 'frame_number' and 'car_id' are suitable for grouping and sorting
+    df['frame_number'] = df['frame_number'].astype(int)
+    df['car_id'] = df['car_id'].astype(int)
+
+    interpolated_results = []
+
+    # Group by car_id to process each car's trajectory independently
+    for car_id, group in df.groupby('car_id'):
+        # Sort by frame number to ensure correct interpolation order
+        group = group.sort_values(by='frame_number')
+
+        # For frames with multiple detections for the same car_id,
+        # select the one with the highest license_number_score
+        idx = group.groupby('frame_number')['license_number_score'].idxmax()
+        group = group.loc[idx]
+
+        # Reindex to fill in missing frames for interpolation
+        # Create a complete range of frames for this car's presence
+        min_frame = group['frame_number'].min()
+        max_frame = group['frame_number'].max()
+        full_frame_range = pd.DataFrame({'frame_number': range(min_frame, max_frame + 1)})
+
+        # Merge with the group data, filling missing frames with NaNs
+        # Use 'outer' merge to keep all frames from full_frame_range
+        merged_group = pd.merge(full_frame_range, group, on='frame_number', how='left')
+
+        # Interpolate 'license_number' and 'license_number_score'
+        # For license_number, we'll use forward fill then backward fill
+        merged_group['license_number'] = merged_group['license_number'].ffill().bfill()
+        merged_group['license_number_score'] = merged_group['license_number_score'].ffill().bfill()
+
+        # Fill other missing values (like bboxes) with the nearest available
+        # This is a simple approach; more sophisticated bbox interpolation might be needed
+        # For simplicity, we'll ffill and bfill other relevant columns
+        merged_group['car_id'] = merged_group['car_id'].ffill().bfill()
+        merged_group['car_bbox'] = merged_group['car_bbox'].ffill().bfill()
+        merged_group['license_plate_bbox'] = merged_group['license_plate_bbox'].ffill().bfill()
+        merged_group['license_plate_bbox_score'] = merged_group['license_plate_bbox_score'].ffill().bfill()
+
+
+        # After interpolation, convert back to list of dicts and append
+        interpolated_results.extend(merged_group.to_dict(orient='records'))
+    
+    # Sort the final results by frame_number and then car_id
+    interpolated_results_df = pd.DataFrame(interpolated_results)
+    if not interpolated_results_df.empty:
+        interpolated_results_df = interpolated_results_df.sort_values(by=['frame_number', 'car_id']).reset_index(drop=True)
+        return interpolated_results_df.to_dict(orient='records')
+    else:
+        return []
+
+
+def scale_bbox(x1, y1, x2, y2, original_width, original_height, resized_width, resized_height):
+    """
+    Scales bounding box coordinates from a resized frame back to the original frame dimensions.
+
+    Args:
+        x1, y1, x2, y2 (float): Bounding box coordinates in the resized frame.
+        original_width (int): Width of the original frame.
+        original_height (int): Height of the original frame.
+        resized_width (int): Width of the resized frame.
+        resized_height (int): Height of the resized frame.
+
+    Returns:
+        tuple: Scaled bounding box coordinates (x1_scaled, y1_scaled, x2_scaled, y2_scaled).
+    """
+    x1_scaled = int(x1 * (original_width / resized_width))
+    y1_scaled = int(y1 * (original_height / resized_height))
+    x2_scaled = int(x2 * (original_width / resized_width))
+    y2_scaled = int(y2 * (original_height / resized_height))
+    return x1_scaled, y1_scaled, x2_scaled, y2_scaled
