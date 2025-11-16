@@ -1,0 +1,21 @@
+<div id="users-grid">
+    <div class="grid-header">
+        <div>ID</div>
+        <div>Username</div>
+        <div>Admin</div>
+        <div>Actions</div>
+    </div>
+    {% for user in users %}
+    <div class="user-grid-item">
+        <div>{{ user.id }}</div>
+        <div>{{ user.username }}</div>
+        <div>{{ 'Yes' if user.is_admin else 'No' }}</div>
+        <div>
+            <form action="{{ url_for('admin_delete_user') }}" method="post" class="delete-user-form" data-user-id="{{ user.id }}">
+                <input type="hidden" name="user_id" value="{{ user.id }}">
+                <button type="submit" onclick="return confirm('Are you sure you want to delete user {{ user.username }}?');" class="delete-button">Delete</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>

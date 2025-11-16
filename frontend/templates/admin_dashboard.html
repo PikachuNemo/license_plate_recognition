@@ -4,15 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - User Management</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='1.1') }}">
 </head>
 <body>
+    
     <div class="container">
-        <h1>Admin Dashboard - User Management</h1>
-        <nav>
-            <a href="{{ url_for('index') }}">License Plate Recognition</a> |
+        <h1>Admin Dashboard</h1>
+        <div class="top-right-nav">
+            <a href="#" id="manage-users-button">Manage Users</a>
             <a href="{{ url_for('logout') }}">Logout</a>
-        </nav>
+        </div>
 
         {% with messages = get_flashed_messages() %}
             {% if messages %}
@@ -24,49 +25,107 @@
             {% endif %}
         {% endwith %}
 
-        <h2>Existing Users</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Username</th>
-                    <th>Admin</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in users %}
-                <tr>
-                    <td>{{ user.id }}</td>
-                    <td>{{ user.username }}</td>
-                    <td>{{ 'Yes' if user.is_admin else 'No' }}</td>
-                    <td>
-                        <form action="{{ url_for('admin_delete_user') }}" method="post" style="display:inline;">
-                            <input type="hidden" name="user_id" value="{{ user.id }}">
-                            <button type="submit" onclick="return confirm('Are you sure you want to delete user {{ user.username }}?');">Delete</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div id="user-management-section" style="display: none;">
+            <h2>Existing Users</h2>
+            <div id="user-list-container">
+                {% include '_user_list.html' %}
+            </div>
 
-        <h2>Add New User</h2>
-        <form action="{{ url_for('admin_add_user') }}" method="post">
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" required>
-            <br>
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required>
-            <br>
-            <input type="checkbox" id="is_admin" name="is_admin">
-            <label for="is_admin">Is Admin</label>
-            <br>
-            <button type="submit">Add User</button>
-        </form>
+            <button id="add-user-button" class="center-button">Add New User</button>
+
+            <div id="add-user-form" style="display: none;">
+                <h2>Add New User</h2>
+                <form id="add-user-form-element" action="{{ url_for('admin_add_user') }}" method="post">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required>
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+                    <input type="checkbox" id="is_admin" name="is_admin">
+                    <label for="is_admin">Is Admin</label>
+                    <button type="submit">Add User</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="popup-message" style="display:none; position: fixed; top: 20px; right: 20px; background-color: #4CAF50; color: white; padding: 15px; border-radius: 5px; z-index: 1001;"></div>
 
         {% from '_recognition_form.html' import recognition_form %}
         {{ recognition_form() }}
     </div>
+
+    <script>
+        document.getElementById('manage-users-button').addEventListener('click', function() {
+            var userManagementSection = document.getElementById('user-management-section');
+            if (userManagementSection.style.display === 'none') {
+                userManagementSection.style.display = 'block';
+            } else {
+                userManagementSection.style.display = 'none';
+            }
+        });
+
+        document.getElementById('add-user-button').addEventListener('click', function() {
+            var addUserForm = document.getElementById('add-user-form');
+            if (addUserForm.style.display === 'none') {
+                addUserForm.style.display = 'block';
+            } else {
+                addUserForm.style.display = 'none';
+            }
+        });
+
+        function showPopup(message, success) {
+            const popup = document.getElementById('popup-message');
+            popup.textContent = message;
+            popup.style.backgroundColor = success ? '#4CAF50' : '#f44336';
+            popup.style.display = 'block';
+            setTimeout(() => {
+                popup.style.display = 'none';
+            }, 3000);
+        }
+
+        // Handle Add User form submission
+        document.getElementById('add-user-form-element').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            fetch("{{ url_for('admin_add_user') }}", {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById('user-list-container').innerHTML = data.html;
+                    showPopup(data.message, true);
+                    document.getElementById('add-user-form-element').reset();
+                    document.getElementById('add-user-form').style.display = 'none';
+                } else {
+                    showPopup(data.message, false);
+                }
+            });
+        });
+
+        // Handle Delete User form submission using event delegation
+        document.getElementById('user-list-container').addEventListener('submit', function(e) {
+            if (e.target.classList.contains('delete-user-form')) {
+                e.preventDefault();
+                const form = e.target;
+                const formData = new FormData(form);
+                const userId = form.dataset.userId;
+
+                fetch("{{ url_for('admin_delete_user') }}", {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        document.getElementById('user-list-container').innerHTML = data.html;
+                        showPopup(data.message, true);
+                    } else {
+                        showPopup(data.message, false);
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='1.1') }}">
+</head>
+<body class="auth-page">
+    <div class="auth-card">
+        <h1>Register</h1>
+        {% if error %}
+            <p style="color:red;">{{ error }}</p>
+        {% endif %}
+        <form id="register-form" action="{{ url_for('register') }}" method="post">
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required 
+                       pattern="(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,15}"
+                       title="Password must be between 8 and 15 characters, and contain at least one letter and one number.">
+            </div>
+            <button type="submit">Register</button>
+        </form>
+        <p>Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
+    </div>
+
+    <script>
+        document.getElementById('register-form').addEventListener('submit', function(e) {
+            const password = document.getElementById('password').value;
+            const errorDiv = document.querySelector('.error-message');
+            let errorMessage = '';
+
+            if (password.length < 8 || password.length > 15) {
+                errorMessage = 'Password must be between 8 and 15 characters long.';
+            } else if (!/(?=.*[A-Za-z])(?=.*\d)/.test(password)) {
+                errorMessage = 'Password must contain at least one letter and one number.';
+            }
+
+            if (errorMessage) {
+                e.preventDefault();
+                if (errorDiv) {
+                    errorDiv.textContent = errorMessage;
+                } else {
+                    const newErrorDiv = document.createElement('p');
+                    newErrorDiv.className = 'error-message';
+                    newErrorDiv.style.color = 'red';
+                    newErrorDiv.textContent = errorMessage;
+                    this.parentNode.insertBefore(newErrorDiv, this.nextSibling);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

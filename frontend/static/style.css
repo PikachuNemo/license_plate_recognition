@@ -3,22 +3,76 @@ body {
       background: #f4f6f9;
       margin: 0;
       padding: 20px; /* Add some padding to the body */
-      display: flex;
-      justify-content: center;
-      align-items: flex-start; /* Align items to the start, not center vertically */
-      min-height: 100vh; /* Use min-height to allow scrolling */
     }
-    .card {
-      background: #fff;
-      padding: 40px; /* Increased padding */
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      text-align: center;
-      width: 600px; /* Increased width */
-      max-width: 90%; /* Ensure responsiveness */
-      margin-top: 50px; /* Add some top margin to the card */
+
+    /* Toggle Switch Styles (moved for better specificity) */
+    .toggle-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 20px;
     }
-    h1 {
+    .toggle-container label {
+        margin: 0 10px;
+        font-weight: normal;
+    }
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 60px;
+        height: 34px;
+    }
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        -webkit-transition: .4s;
+        transition: .4s;
+        border-radius: 34px;
+    }
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 26px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        -webkit-transition: .4s;
+        transition: .4s;
+        border-radius: 50%;
+    }
+    input:checked + .slider {
+        background-color: #007bff;
+    }
+    input:focus + .slider {
+        box-shadow: 0 0 1px #007bff;
+    }
+    input:checked + .slider:before {
+        -webkit-transform: translateX(26px);
+        -ms-transform: translateX(26px);
+        transform: translateX(26px);
+    }
+
+        .card {
+          background: #fff;
+          padding: 40px; /* Increased padding */
+          border-radius: 12px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+          text-align: center;
+          width: 600px; /* Increased width */
+          max-width: 90%; /* Ensure responsiveness */
+          margin: 50px auto; /* Center the card horizontally with top margin */
+        }    h1 {
       margin-bottom: 30px; /* Increased margin */
       color: #333;
       font-size: 2.5em; /* Bigger heading */
@@ -135,11 +189,16 @@ body {
     margin-bottom: 20px;
 }
 
-.logout-button-top-right {
+
+.top-right-nav {
     position: absolute;
     top: 20px;
     right: 20px;
-    background: #dc3545; /* Red color for logout */
+    z-index: 1000;
+}
+
+.top-right-nav a {
+    background: #007bff;
     color: white;
     border: none;
     padding: 8px 15px;
@@ -148,9 +207,247 @@ body {
     text-decoration: none;
     font-size: 14px;
     transition: background 0.3s;
-    z-index: 1000; /* Ensure it's above other content */
+    margin-left: 10px;
 }
 
-.logout-button-top-right:hover {
+.top-right-nav a:hover {
+    background: #0056b3;
+}
+
+.top-right-nav a:last-child {
+    background: #dc3545;
+}
+
+.top-right-nav a:last-child:hover {
     background: #c82333;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px; /* Increased margin */
+    color: #333;
+    font-size: 2.5em; /* Bigger heading */
+}
+
+/* Admin Dashboard Specific Styles */
+#user-management-section {
+    background: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    margin-top: 30px;
+}
+
+#user-management-section h2 {
+    margin-top: 0;
+    color: #333;
+    font-size: 1.8em;
+    margin-bottom: 20px;
+}
+
+#user-management-section table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+#user-management-section th, #user-management-section td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+}
+
+#user-management-section th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+#user-management-section tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+#user-management-section tr:hover {
+    background-color: #f1f1f1;
+}
+
+#add-user-button {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s;
+    font-size: 1.1em;
+    width: auto;
+    max-width: 200px;
+    margin-top: 10px;
+}
+
+#add-user-button:hover {
+    background: #218838;
+}
+
+#add-user-form {
+    background: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    margin-top: 20px;
+}
+
+#add-user-form h2 {
+    margin-top: 0;
+    color: #333;
+    font-size: 1.5em;
+    margin-bottom: 20px;
+}
+
+#add-user-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+#add-user-form input[type="text"],
+#add-user-form input[type="password"] {
+    width: calc(100% - 24px);
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+#add-user-form button {
+    width: 100%;
+    max-width: 200px;
+}
+
+/* New styles for user grid */
+#users-grid {
+    display: grid;
+    grid-template-columns: 0.5fr 2fr 1fr 1.5fr; /* Adjust column widths as needed */
+    gap: 1px; /* Gap between grid items */
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden; /* Ensures border-radius applies to children */
+    margin-bottom: 20px;
+}
+
+.grid-header, .user-grid-item {
+    display: contents; /* Makes children direct grid items */
+}
+
+.grid-header div, .user-grid-item div {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+    background-color: #f9f9f9;
+    word-wrap: break-word; /* Ensures text wraps within cells */
+}
+
+.grid-header div {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    border-bottom: 2px solid #ddd; /* Thicker border for header */
+}
+
+.user-grid-item:nth-child(even) div {
+    background-color: #fefefe;
+}
+
+.user-grid-item:hover div {
+    background-color: #f1f1f1;
+}
+
+/* Red delete button */
+.delete-button {
+    background: #dc3545; /* Red color */
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 14px;
+    transition: background 0.3s;
+}
+
+.delete-button:hover {
+    background: #c82333; /* Darker red on hover */
+}
+
+/* Centered Add User button */
+.center-button {
+    display: block; /* Ensures it takes full width for margin auto to work */
+    margin: 20px auto; /* Centers the button horizontally */
+}
+
+/* Authentication Forms (Login/Register) Styles */
+.auth-card {
+    background: #fff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    text-align: center;
+    width: 350px;
+    margin-top: 50px; /* Add some top margin to the card */
+}
+
+.auth-card h1 {
+    margin-bottom: 30px;
+    color: #333;
+    font-size: 2.5em; /* Consistent heading size */
+}
+
+.auth-card .form-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.auth-card label {
+    display: block;
+    margin-bottom: 8px;
+    color: #555;
+    font-weight: bold;
+}
+
+.auth-card input[type="text"],
+.auth-card input[type="password"] {
+    width: calc(100% - 20px);
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 16px;
+}
+
+.auth-card button {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 18px;
+    transition: background 0.3s;
+    width: 100%;
+    max-width: none; /* Override general button max-width */
+    margin-top: 20px;
+}
+
+.auth-card button:hover {
+    background: #0056b3;
+}
+
+.error-message {
+    color: red;
+    margin-top: 15px;
+}
+
+/* General body styling for auth pages */
+body.auth-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 0; /* Remove padding from general body */
 }

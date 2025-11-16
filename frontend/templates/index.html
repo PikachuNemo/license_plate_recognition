@@ -6,7 +6,9 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <a href="{{ url_for('logout') }}" class="logout-button-top-right">Logout</a>
+  <div class="top-right-nav">
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </div>
   {% from '_recognition_form.html' import recognition_form %}
   {{ recognition_form() }}
 </body>
