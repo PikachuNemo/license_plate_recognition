@@ -29,7 +29,7 @@ def visualize_video(results_file_path: str, original_video_path: str, output_vid
         print(f"Error: Could not open original video file at {original_video_path}")
         return
 
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Use mp4v as requested by the user
+    fourcc = cv2.VideoWriter_fourcc(*'AVC1')  # Changed to AVC1 for broader browser compatibility
     fps = cap.get(cv2.CAP_PROP_FPS)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))

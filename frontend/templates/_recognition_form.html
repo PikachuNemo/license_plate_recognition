@@ -1,0 +1,96 @@
+{% macro recognition_form() %}
+<div class="card">
+    <div class="header-container">
+        <h1>License Plate Recognition brr</h1>
+    </div>
+    
+    <form id="upload-form" enctype="multipart/form-data">
+      <div class="form-group">
+        <label for="video-input">Upload Video File:</label>
+        <input type="file" id="video-input" name="video" accept="video/*" required>
+      </div>
+      <button type="submit">Upload & Recognize</button>
+    </form>
+
+    <div id="result"></div>
+
+    <div id="video-display-container">
+      <div id="input-video-section" class="video-wrapper" style="display:none;">
+        <h3>Input Video</h3>
+        <video id="input-video" controls muted loop></video>
+      </div>
+      <div id="output-video-section" class="video-wrapper" style="display:none;">
+        <h3>Output Video</h3>
+        <video id="output-video" controls muted loop></video>
+        <div id="detected-plate-display" class="detected-plate-style"></div> <!-- New div for plate -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('upload-form');
+    const resultDiv = document.getElementById('result');
+    const inputVideoElement = document.getElementById('input-video');
+    const outputVideoElement = document.getElementById('output-video');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+
+      // Clear previous results and hide videos
+      resultDiv.innerHTML = '';
+      // inputVideoElement.style.display = 'none'; // Removed: video elements are hidden by their parent section
+      // outputVideoElement.style.display = 'none'; // Removed: video elements are hidden by their parent section
+      inputVideoElement.src = '';
+      outputVideoElement.src = '';
+      // Also hide the sections explicitly in case they were previously shown
+      document.getElementById('input-video-section').style.display = 'none';
+      document.getElementById('output-video-section').style.display = 'none';
+
+      // Show spinner while recognizing
+      resultDiv.innerHTML = '<div class="spinner"></div><p>Recognizing...</p>';
+
+      try {
+        const res = await fetch('/recognize', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+        if (data.plate) {
+          // resultDiv.innerHTML = `<strong>Detected Plate:</strong><br><span style="font-size:22px; color:#007bff;">${data.plate}</span>`; 
+          
+          const inputVideoSection = document.getElementById('input-video-section');
+          const outputVideoSection = document.getElementById('output-video-section');
+          const detectedPlateDisplay = document.getElementById('detected-plate-display'); // Get new div
+
+          if (data.input_video_url) {
+            inputVideoElement.src = data.input_video_url;
+            inputVideoSection.style.display = 'block'; // Show the entire section
+          } else {
+            inputVideoSection.style.display = 'none';
+          }
+
+          if (data.output_video_url) {
+            outputVideoElement.src = data.output_video_url;
+            outputVideoSection.style.display = 'block'; // Show the entire section
+            detectedPlateDisplay.innerHTML = `<strong>Detected Plate:</strong><br><span style="font-size:22px; color:#007bff;">${data.plate}</span>`; // Set plate here
+            detectedPlateDisplay.style.display = 'block'; // Show plate display
+          } else {
+            outputVideoSection.style.display = 'none';
+            detectedPlateDisplay.style.display = 'none'; // Hide plate display if no output video
+          }
+
+        } else {
+          resultDiv.innerHTML = "<span style='color:red;'>No plate detected.</span>";
+          // Also hide video sections if no plate detected
+          document.getElementById('input-video-section').style.display = 'none';
+          document.getElementById('output-video-section').style.display = 'none';
+          document.getElementById('detected-plate-display').style.display = 'none';
+        }
+      } catch (err) {
+        resultDiv.innerHTML = "<span style='color:red;'>Error during recognition.</span>";
+      }
+    });
+  </script>
+{% endmacro %}

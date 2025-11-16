@@ -2,11 +2,11 @@ body {
       font-family: Arial, sans-serif;
       background: #f4f6f9;
       margin: 0;
-      padding: 0;
+      padding: 20px; /* Add some padding to the body */
       display: flex;
       justify-content: center;
-      align-items: center;
-      height: 100vh;
+      align-items: flex-start; /* Align items to the start, not center vertically */
+      min-height: 100vh; /* Use min-height to allow scrolling */
     }
     .card {
       background: #fff;
@@ -16,6 +16,7 @@ body {
       text-align: center;
       width: 600px; /* Increased width */
       max-width: 90%; /* Ensure responsiveness */
+      margin-top: 50px; /* Add some top margin to the card */
     }
     h1 {
       margin-bottom: 30px; /* Increased margin */
@@ -114,6 +115,17 @@ body {
     height: auto;
     border: 1px solid #ccc;
     border-radius: 8px;
+}
+
+.detected-plate-style {
+    margin-top: 15px;
+    padding: 10px;
+    border: 1px solid #007bff;
+    border-radius: 8px;
+    background-color: #e7f3ff;
+    color: #007bff;
+    font-weight: bold;
+    font-size: 1.1em;
 }
 
 .header-container {

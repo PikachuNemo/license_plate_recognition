@@ -64,6 +64,9 @@
             <br>
             <button type="submit">Add User</button>
         </form>
+
+        {% from '_recognition_form.html' import recognition_form %}
+        {{ recognition_form() }}
     </div>
 </body>
 </html>
