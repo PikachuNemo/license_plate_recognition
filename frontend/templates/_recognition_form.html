@@ -19,6 +19,10 @@
         <h3>Input Video</h3>
         <video id="input-video" controls muted loop></video>
       </div>
+      <div id="spinner-container" style="display:none; text-align: center; margin-top: 20px;">
+        <div class="spinner"></div>
+        <p>Recognizing...</p>
+      </div>
       <div id="output-video-section" class="video-wrapper" style="display:none;">
         <h3>Output Video</h3>
         <video id="output-video" controls muted loop></video>
@@ -32,23 +36,34 @@
     const resultDiv = document.getElementById('result');
     const inputVideoElement = document.getElementById('input-video');
     const outputVideoElement = document.getElementById('output-video');
+    const spinnerContainer = document.getElementById('spinner-container');
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const formData = new FormData(form);
+      const videoInput = document.getElementById('video-input');
+      const inputVideoSection = document.getElementById('input-video-section');
 
       // Clear previous results and hide videos
       resultDiv.innerHTML = '';
-      // inputVideoElement.style.display = 'none'; // Removed: video elements are hidden by their parent section
-      // outputVideoElement.style.display = 'none'; // Removed: video elements are hidden by their parent section
       inputVideoElement.src = '';
       outputVideoElement.src = '';
-      // Also hide the sections explicitly in case they were previously shown
-      document.getElementById('input-video-section').style.display = 'none';
       document.getElementById('output-video-section').style.display = 'none';
+      document.getElementById('detected-plate-display').style.display = 'none';
+      spinnerContainer.style.display = 'none'; // Hide spinner initially
+
+      // Display input video immediately
+      if (videoInput.files.length > 0) {
+        const file = videoInput.files[0];
+        const videoUrl = URL.createObjectURL(file);
+        inputVideoElement.src = videoUrl;
+        inputVideoSection.style.display = 'block';
+      } else {
+        inputVideoSection.style.display = 'none';
+      }
 
       // Show spinner while recognizing
-      resultDiv.innerHTML = '<div class="spinner"></div><p>Recognizing...</p>';
+      spinnerContainer.style.display = 'block';
 
       try {
         const res = await fetch('/recognize', {
@@ -57,19 +72,13 @@
         });
 
         const data = await res.json();
+        spinnerContainer.style.display = 'none'; // Hide spinner after response
+
         if (data.plate) {
-          // resultDiv.innerHTML = `<strong>Detected Plate:</strong><br><span style="font-size:22px; color:#007bff;">${data.plate}</span>`; 
+          // resultDiv.innerHTML = ''; // Clear the spinner (already handled by spinnerContainer.style.display = 'none')
           
-          const inputVideoSection = document.getElementById('input-video-section');
           const outputVideoSection = document.getElementById('output-video-section');
           const detectedPlateDisplay = document.getElementById('detected-plate-display'); // Get new div
-
-          if (data.input_video_url) {
-            inputVideoElement.src = data.input_video_url;
-            inputVideoSection.style.display = 'block'; // Show the entire section
-          } else {
-            inputVideoSection.style.display = 'none';
-          }
 
           if (data.output_video_url) {
             outputVideoElement.src = data.output_video_url;
@@ -83,13 +92,14 @@
 
         } else {
           resultDiv.innerHTML = "<span style='color:red;'>No plate detected.</span>";
-          // Also hide video sections if no plate detected
-          document.getElementById('input-video-section').style.display = 'none';
           document.getElementById('output-video-section').style.display = 'none';
           document.getElementById('detected-plate-display').style.display = 'none';
         }
       } catch (err) {
+        spinnerContainer.style.display = 'none'; // Hide spinner on error
         resultDiv.innerHTML = "<span style='color:red;'>Error during recognition.</span>";
+        document.getElementById('output-video-section').style.display = 'none';
+        document.getElementById('detected-plate-display').style.display = 'none';
       }
     });
   </script>
