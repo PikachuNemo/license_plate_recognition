@@ -4,18 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register</title>
+    <link rel="icon" href="{{ url_for('static', filename='assets/PlateSeeker-transparent.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='1.1') }}">
 </head>
 <body class="auth-page">
     <div class="auth-card">
-        <h1>Register</h1>
+        <div class="auth-header">
+            <img src="{{ url_for('static', filename='assets/PlateSeeker-transparent.png') }}" alt="PlateSeeker Logo">
+            <h1 class="auth-title">PlateSeeker</h1>
+        </div>
+        <h2>Registration</h2>
         {% if error %}
             <p style="color:red;">{{ error }}</p>
         {% endif %}
         <form id="register-form" action="{{ url_for('register') }}" method="post">
             <div class="form-group">
                 <label for="username">Username:</label>
-                <input type="text" id="username" name="username" required>
+                <input type="text" id="username" name="username" required pattern="^[a-zA-Z0-9]+$" title="Username must contain only letters and digits.">
             </div>
             <div class="form-group">
                 <label for="password">Password:</label>
@@ -30,11 +35,16 @@
 
     <script>
         document.getElementById('register-form').addEventListener('submit', function(e) {
+            const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const errorDiv = document.querySelector('.error-message');
             let errorMessage = '';
 
-            if (password.length < 8 || password.length > 15) {
+            // Username validation
+            const usernamePattern = /^[a-zA-Z0-9]+$/;
+            if (!usernamePattern.test(username)) {
+                errorMessage = 'Username must contain only letters and digits.';
+            } else if (password.length < 8 || password.length > 15) {
                 errorMessage = 'Password must be between 8 and 15 characters long.';
             } else if (!/(?=.*[A-Za-z])(?=.*\d)/.test(password)) {
                 errorMessage = 'Password must contain at least one letter and one number.';

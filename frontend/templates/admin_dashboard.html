@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - User Management</title>
+    <title>Admin Dashboard</title>
+    <link rel="icon" href="{{ url_for('static', filename='assets/PlateSeeker-transparent.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='1.1') }}">
 </head>
-<body>
+<body >
     
     <div class="container">
-        <h1>Admin Dashboard</h1>
+        <h1 class="dashboard-title">Admin Dashboard</h1>
         <div class="top-right-nav">
             <a href="#" id="manage-users-button">Manage Users</a>
             <a href="{{ url_for('logout') }}">Logout</a>
@@ -48,9 +49,14 @@
         </div>
 
         <div id="popup-message" style="display:none; position: fixed; top: 20px; right: 20px; background-color: #4CAF50; color: white; padding: 15px; border-radius: 5px; z-index: 1001;"></div>
+    </div>
 
-        {% from '_recognition_form.html' import recognition_form %}
+    {% from '_recognition_form.html' import recognition_form %}
+    {% from '_watchlist.html' import watchlist %}
+    <div id="main-content-container">
+        <div class="card empty-card"></div>
         {{ recognition_form() }}
+        {{ watchlist() }}
     </div>
 
     <script>

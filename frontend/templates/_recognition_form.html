@@ -27,6 +27,9 @@
         <h3>Output Video</h3>
         <video id="output-video" controls muted loop></video>
         <div id="detected-plate-display" class="detected-plate-style"></div> <!-- New div for plate -->
+        <div id="save-button-container" style="display:none; margin-top: 10px;">
+          <button id="save-plates-btn">Save Detected Plates</button>
+        </div>
       </div>
     </div>
   </div>
@@ -37,6 +40,10 @@
     const inputVideoElement = document.getElementById('input-video');
     const outputVideoElement = document.getElementById('output-video');
     const spinnerContainer = document.getElementById('spinner-container');
+    const saveButtonContainer = document.getElementById('save-button-container');
+
+    let detectedPlatesData = ''; // Variable to store detected plates
+    let videoFileName = ''; // Variable to store the video filename
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -51,10 +58,14 @@
       document.getElementById('output-video-section').style.display = 'none';
       document.getElementById('detected-plate-display').style.display = 'none';
       spinnerContainer.style.display = 'none'; // Hide spinner initially
+      saveButtonContainer.style.display = 'none'; // Hide save button
+      detectedPlatesData = ''; // Clear previous data
+      videoFileName = ''; // Clear previous filename
 
       // Display input video immediately
       if (videoInput.files.length > 0) {
         const file = videoInput.files[0];
+        videoFileName = file.name; // Store the filename
         const videoUrl = URL.createObjectURL(file);
         inputVideoElement.src = videoUrl;
         inputVideoSection.style.display = 'block';
@@ -75,16 +86,31 @@
         spinnerContainer.style.display = 'none'; // Hide spinner after response
 
         if (data.plate) {
-          // resultDiv.innerHTML = ''; // Clear the spinner (already handled by spinnerContainer.style.display = 'none')
+          detectedPlatesData = data.plate; // Store the detected plates
           
           const outputVideoSection = document.getElementById('output-video-section');
-          const detectedPlateDisplay = document.getElementById('detected-plate-display'); // Get new div
+          const detectedPlateDisplay = document.getElementById('detected-plate-display');
+
+          // Watchlist logic
+          const savedWatchlist = localStorage.getItem('licensePlateWatchlist') || '';
+          const watchlist = savedWatchlist.split(',').map(p => p.trim()).filter(p => p);
+          const detectedPlates = detectedPlatesData.split('<br>').filter(p => p);
+
+          let displayHtml = '<strong>Detected Plates:</strong><br>';
+          detectedPlates.forEach(plate => {
+            if (watchlist.includes(plate)) {
+              displayHtml += `<span style="font-size:22px; color:red;">${plate}</span><br>`;
+            } else {
+              displayHtml += `<span style="font-size:22px; color:#007bff;">${plate}</span><br>`;
+            }
+          });
 
           if (data.output_video_url) {
             outputVideoElement.src = data.output_video_url;
             outputVideoSection.style.display = 'block'; // Show the entire section
-            detectedPlateDisplay.innerHTML = `<strong>Detected Plate:</strong><br><span style="font-size:22px; color:#007bff;">${data.plate}</span>`; // Set plate here
+            detectedPlateDisplay.innerHTML = displayHtml; // Set the potentially colored plates
             detectedPlateDisplay.style.display = 'block'; // Show plate display
+            saveButtonContainer.style.display = 'block'; // Show the save button
           } else {
             outputVideoSection.style.display = 'none';
             detectedPlateDisplay.style.display = 'none'; // Hide plate display if no output video
@@ -100,6 +126,21 @@
         resultDiv.innerHTML = "<span style='color:red;'>Error during recognition.</span>";
         document.getElementById('output-video-section').style.display = 'none';
         document.getElementById('detected-plate-display').style.display = 'none';
+      }
+    });
+
+    document.getElementById('save-plates-btn').addEventListener('click', () => {
+      if (detectedPlatesData) {
+        const blob = new Blob([detectedPlatesData.replace(/<br>/g, '\n')], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const fileNameSafe = videoFileName.split('.').slice(0, -1).join('.') || 'video';
+        a.download = `detected_plates_${fileNameSafe}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       }
     });
   </script>

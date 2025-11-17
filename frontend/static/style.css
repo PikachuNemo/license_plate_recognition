@@ -3,6 +3,10 @@ body {
       background: #f4f6f9;
       margin: 0;
       padding: 20px; /* Add some padding to the body */
+      min-height: 100vh; /* Ensure body takes full viewport height */
+      display: flex; /* Make body a flex container */
+      flex-direction: column; /* Stack children vertically */
+      align-items: center; /* Center content horizontally */
     }
 
     /* Toggle Switch Styles (moved for better specificity) */
@@ -69,9 +73,8 @@ body {
           border-radius: 12px;
           box-shadow: 0 4px 12px rgba(0,0,0,0.1);
           text-align: center;
-          width: 600px; /* Increased width */
           max-width: 90%; /* Ensure responsiveness */
-          margin: 50px auto; /* Center the card horizontally with top margin */
+          margin: 50px auto; /* Restore default margin for cards outside the container */
         }    h1 {
       margin-bottom: 30px; /* Increased margin */
       color: #333;
@@ -227,6 +230,17 @@ h1 {
     margin-bottom: 30px; /* Increased margin */
     color: #333;
     font-size: 2.5em; /* Bigger heading */
+}
+
+h1.dashboard-title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #1f5f2e;
+    margin-bottom: 1.2rem;
+    padding-bottom: 6px;
+    border-bottom: 3px solid #2ecc71;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 /* Admin Dashboard Specific Styles */
@@ -395,7 +409,7 @@ h1 {
 
 .auth-card h1 {
     margin-bottom: 30px;
-    color: #333;
+    color: d7181f;
     font-size: 2.5em; /* Consistent heading size */
 }
 
@@ -450,4 +464,188 @@ body.auth-page {
     align-items: center;
     min-height: 100vh;
     padding: 0; /* Remove padding from general body */
+}
+
+/* Watchlist specific styles */
+.watchlist-input-group {
+    display: flex;
+    gap: 10px; /* Space between input and buttons */
+    margin-top: 20px;
+    justify-content: center;
+    align-items: center;
+}
+
+.watchlist-input-group input[type="text"] {
+    flex-grow: 1; /* Allow input to take available space */
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 1em;
+    max-width: 200px; /* Limit input width */
+}
+
+.watchlist-input-group button {
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 1em;
+    width: auto; /* Override full width from general button style */
+    margin-top: 0; /* Override margin from general button style */
+}
+
+.btn-add {
+    background: #28a745; /* Green */
+}
+
+.btn-add:hover {
+    background: #218838; /* Darker green */
+}
+
+.btn-clear {
+    background: #dc3545; /* Red */
+}
+
+.btn-clear:hover {
+    background: #c82333; /* Darker red */
+}
+
+.watchlist-container {
+    margin-top: 20px;
+    padding: 10px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    min-height: 50px; /* Ensure it's visible even when empty */
+    text-align: left;
+}
+
+.watchlist-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px dashed #e0e0e0;
+    color: #333;
+    font-size: 1.1em;
+}
+
+.watchlist-item:last-child {
+    border-bottom: none;
+}
+
+.remove-plate {
+    color: #dc3545;
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 10px;
+    font-size: 1.2em;
+}
+
+.remove-plate:hover {
+    color: #c82333;
+}
+
+#main-content-container {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr; /* Equal flexible space on sides, auto for center */
+    align-items: start; /* Top-align grid items */
+    gap: 20px;
+    width: 100%;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* The empty spacer card */
+.empty-card {
+    background: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+/* The recognition form card */
+#main-content-container > .card:nth-child(2) {
+    grid-column: 2; /* Place in the center column */
+    width: 600px;
+    margin: 0;
+}
+
+/* The watchlist card */
+#main-content-container > .card:nth-child(3) {
+    grid-column: 3; /* Place in the right column */
+    width: 100%; /* Take up the full width of the grid column */
+    margin: 0;
+}
+
+/* Media query for smaller screens */
+@media (max-width: 1200px) {
+    #main-content-container {
+        display: block; /* Revert to block layout */
+    }
+
+    .empty-card {
+        display: none; /* Hide the spacer on small screens */
+    }
+
+    #main-content-container > .card:nth-child(2),
+    #main-content-container > .card:nth-child(3) {
+        width: 100%;
+        max-width: 600px;
+        margin: 20px auto; /* Center the cards when stacked */
+    }
+}
+
+/* Admin Dashboard Layout Styles */
+.admin-page .dashboard-layout {
+    position: relative;
+    width: 100%;
+}
+
+.admin-page .dashboard-layout > .card:first-child { /* Recognition Form */
+    width: 600px;
+    max-width: 90%;
+    margin: 20px auto; /* Center the main card */
+}
+
+.admin-page .dashboard-layout > .card:last-child { /* Watchlist */
+    position: absolute;
+    top: 20px;
+    /* Position it to the right of the center. Calculation: 50% of viewport width + half of recognition card width + gap */
+    left: calc(50% + 300px + 20px); 
+    width: 300px; /* Make it narrower */
+    margin: 0;
+}
+
+/* Media query for the admin layout */
+@media (max-width: 1300px) {
+    .admin-page .dashboard-layout > .card:last-child {
+        position: static; /* Revert to static positioning */
+        width: 100%;
+        max-width: 600px;
+        }
+}
+
+/* Auth Header Styles */
+.auth-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.auth-header img {
+    width: 100px; /* Adjust size as needed */
+    height: auto;
+    margin-bottom: 10px;
+}
+
+.auth-title {
+    color: #d7181f; /* Red color */
+    font-size: 2.8em;
+    margin: 0;
+    font-weight: bold;
+}
+
+.auth-card h2 {
+    font-size: 1.8em;
+    color: #333;
+    margin-bottom: 25px;
 }

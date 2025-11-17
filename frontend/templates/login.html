@@ -4,11 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
+    <link rel="icon" href="{{ url_for('static', filename='assets/PlateSeeker-transparent.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='1.1') }}">
 </head>
 <body class="auth-page">
     <div class="auth-card">
-        <h1>Login</h1>
+        <div class="auth-header">
+            <img src="{{ url_for('static', filename='assets/PlateSeeker-transparent.png') }}" alt="PlateSeeker Logo">
+            <h1 class="auth-title">PlateSeeker</h1>
+        </div>
+        <h2>Login</h2>
         <form action="/login" method="post">
             <div class="form-group">
                 <label for="username">Username:</label>

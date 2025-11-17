@@ -1,0 +1,126 @@
+{% macro watchlist() %}
+<div class="card">
+    <div class="header-container">
+        <h2>Watchlist</h2>
+    </div>
+
+    <div id="watchlist-display" class="watchlist-container"></div>
+
+    <div class="form-group watchlist-input-group">
+        <input type="text" id="watchlist-input" placeholder="e.g., B AE 5627" maxlength="9">
+        <button id="add-to-watchlist-btn" class="btn-add">Add</button>
+        <button id="clear-watchlist-btn" class="btn-clear">Clear</button>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const watchlistInput = document.getElementById('watchlist-input');
+        const addBtn = document.getElementById('add-to-watchlist-btn');
+        const clearBtn = document.getElementById('clear-watchlist-btn');
+        const watchlistDisplay = document.getElementById('watchlist-display');
+
+        const platePattern = /^[A-Z]\s[A-Z]{2}\s\d{4}$/; // New pattern for validation
+
+        const getWatchlist = () => {
+            const savedWatchlist = localStorage.getItem('licensePlateWatchlist');
+            return savedWatchlist ? savedWatchlist.split(',') : [];
+        };
+
+        const saveWatchlist = (watchlist) => {
+            localStorage.setItem('licensePlateWatchlist', watchlist.join(','));
+        };
+
+        const renderWatchlist = () => {
+            watchlistDisplay.innerHTML = '';
+            const watchlist = getWatchlist();
+            watchlist.forEach(plate => {
+                if (plate) { // Ensure no empty strings are rendered
+                    const plateElement = document.createElement('div');
+                    plateElement.className = 'watchlist-item';
+                    plateElement.textContent = plate;
+                    
+                    const removeBtn = document.createElement('span');
+                    removeBtn.className = 'remove-plate';
+                    removeBtn.textContent = '×';
+                    removeBtn.onclick = () => removePlateFromWatchlist(plate);
+                    
+                    plateElement.appendChild(removeBtn);
+                    watchlistDisplay.appendChild(plateElement);
+                }
+            });
+        };
+
+        const addPlateToWatchlist = () => {
+            const plate = watchlistInput.value.trim().toUpperCase();
+            if (plate.match(platePattern)) { // Use the new pattern for validation
+                let watchlist = getWatchlist();
+                if (!watchlist.includes(plate)) {
+                    watchlist.push(plate);
+                    saveWatchlist(watchlist);
+                    renderWatchlist();
+                }
+                watchlistInput.value = '';
+            } else {
+                alert('Please enter a valid plate number in the format A BB 1234 (e.g., B AE 5627).');
+            }
+        };
+
+        const removePlateFromWatchlist = (plateToRemove) => {
+            let watchlist = getWatchlist();
+            watchlist = watchlist.filter(plate => plate !== plateToRemove);
+            saveWatchlist(watchlist);
+            renderWatchlist();
+        };
+
+        const clearWatchlist = () => {
+            localStorage.removeItem('licensePlateWatchlist');
+            renderWatchlist();
+        };
+
+        addBtn.addEventListener('click', addPlateToWatchlist);
+        clearBtn.addEventListener('click', clearWatchlist);
+
+        watchlistInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addPlateToWatchlist();
+            }
+        });
+        
+        // Auto-formatting and input filtering
+        watchlistInput.addEventListener('input', function(e) {
+            let rawValue = this.value.replace(/\s/g, ''); // Remove spaces to get raw characters
+
+            // Enforce character types: 3 letters followed by 4 digits
+            let letters = rawValue.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '');
+            let digits = rawValue.substring(3, 7).replace(/[^0-9]/g, '');
+            
+            let value = letters + digits;
+
+            let formattedValue = '';
+            if (value.length > 0) {
+                formattedValue += value.substring(0, 1);
+            }
+            if (value.length > 1) {
+                formattedValue += ' ' + value.substring(1, 3);
+            }
+            if (value.length > 3) {
+                formattedValue += ' ' + value.substring(3, 7);
+            }
+            
+            // To avoid infinite loops and handle cursor position correctly
+            if (this.value !== formattedValue) {
+                let selectionStart = this.selectionStart;
+                let change = formattedValue.length - this.value.length;
+                this.value = formattedValue;
+                this.selectionStart = selectionStart + change > 0 ? selectionStart + change : selectionStart;
+                this.selectionEnd = this.selectionStart;
+            }
+        });
+
+        // Initial render
+        renderWatchlist();
+    });
+</script>
+{% endmacro %}

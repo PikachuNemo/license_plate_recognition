@@ -3,13 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <title>License Plate Recognition</title>
+  <link rel="icon" href="{{ url_for('static', filename='assets/PlateSeeker-transparent.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <div class="top-right-nav">
             <a href="{{ url_for('logout') }}">Logout</a>
         </div>
+  <h1 class="dashboard-title">Dashboard</h1>
   {% from '_recognition_form.html' import recognition_form %}
-  {{ recognition_form() }}
+  {% from '_watchlist.html' import watchlist %}
+  <div id="main-content-container">
+    <div class="card empty-card"></div>
+    {{ recognition_form() }}
+    {{ watchlist() }}
+  </div>
 </body>
 </html>
