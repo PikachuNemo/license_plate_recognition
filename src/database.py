@@ -38,6 +38,7 @@ class User(Base):
     username = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False) # Store hashed passwords
     is_admin = Column(Boolean, default=False)
+    watchlist = Column(Text, default="") # New column for user-specific watchlist
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

@@ -91,9 +91,16 @@
           const outputVideoSection = document.getElementById('output-video-section');
           const detectedPlateDisplay = document.getElementById('detected-plate-display');
 
-          // Watchlist logic
-          const savedWatchlist = localStorage.getItem('licensePlateWatchlist') || '';
-          const watchlist = savedWatchlist.split(',').map(p => p.trim()).filter(p => p);
+          // Watchlist logic - Fetch from server
+          const response = await fetch('/watchlist');
+          let watchlist = [];
+          if (response.ok) {
+              const data = await response.json();
+              watchlist = data.watchlist;
+          } else {
+              console.error('Failed to fetch watchlist for highlighting.');
+          }
+          
           const detectedPlates = detectedPlatesData.split('<br>').filter(p => p);
 
           let displayHtml = '<strong>Detected Plates:</strong><br>';
