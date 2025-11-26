@@ -29,7 +29,7 @@ def visualize_video(results_file_path: str, original_video_path: str, output_vid
         print(f"Error: Could not open original video file at {original_video_path}")
         return
 
-    fourcc = cv2.VideoWriter_fourcc(*'AVC1')  # Changed to AVC1 for broader browser compatibility
+    fourcc = cv2.VideoWriter_fourcc(*'avc1')  # Changed to avc1 for broader browser compatibility
     fps = cap.get(cv2.CAP_PROP_FPS)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -43,18 +43,18 @@ def visualize_video(results_file_path: str, original_video_path: str, output_vid
     if not out.isOpened():
         print(f"Error: Could not create video writer for {output_video_path}. Check codec or file path.")
         cap.release()
-        return
+        return None
 
     frame_number = 0 # Initialize frame_number to 0
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0) # Reset video capture to the beginning
 
     print("[visualize_video] Starting main video frame processing loop...")
     while True:
-        frame_number += 1 # Increment frame_number at the beginning of the loop
         ret, frame = cap.read()
         if not ret:
-            print(f"[visualize_video] End of video or read error at frame {frame_number-1}. Exiting loop.") # Adjust frame_number for print
+            print(f"[visualize_video] End of video or read error at frame {frame_number}. Exiting loop.")
             break
+        frame_number += 1
 
         current_frame_results = results[results['frame_number'] == frame_number]
 
@@ -65,13 +65,13 @@ def visualize_video(results_file_path: str, original_video_path: str, output_vid
                 license_plate_number = str(row['license_number']) # Use interpolated license number
                 
                 # Draw car bounding box
-                if car_bbox_str:
+                if car_bbox_str and isinstance(car_bbox_str, str):
                     car_x1, car_y1, car_x2, car_y2 = ast.literal_eval(car_bbox_str)
                     car_x1, car_y1, car_x2, car_y2 = int(car_x1), int(car_y1), int(car_x2), int(car_y2)
                     cv2.rectangle(frame, (car_x1, car_y1), (car_x2, car_y2), (0, 255, 0), 5) # Green, thickness 5
 
                 # Draw license plate bounding box
-                if license_plate_bbox_str:
+                if license_plate_bbox_str and isinstance(license_plate_bbox_str, str):
                     lp_x1, lp_y1, lp_x2, lp_y2 = ast.literal_eval(license_plate_bbox_str)
                     lp_x1, lp_y1, lp_x2, lp_y2 = int(lp_x1), int(lp_y1), int(lp_x2), int(lp_y2)
                     cv2.rectangle(frame, (lp_x1, lp_y1), (lp_x2, lp_y2), (0, 0, 255), 12) # Red, thickness 12
@@ -95,3 +95,4 @@ def visualize_video(results_file_path: str, original_video_path: str, output_vid
     cap.release()
     out.release()
     print(f"[visualize_video] Processed video saved to {output_video_path}")
+    return output_video_path

@@ -113,14 +113,32 @@
           });
 
           if (data.output_video_url) {
-            outputVideoElement.src = data.output_video_url;
-            outputVideoSection.style.display = 'block'; // Show the entire section
-            detectedPlateDisplay.innerHTML = displayHtml; // Set the potentially colored plates
-            detectedPlateDisplay.style.display = 'block'; // Show plate display
-            saveButtonContainer.style.display = 'block'; // Show the save button
+            try {
+              console.log("Received output video URL:", data.output_video_url);
+
+              outputVideoElement.onloadeddata = () => {
+                console.log("Video data loaded successfully.");
+              };
+              outputVideoElement.onerror = () => {
+                console.error("Error loading video. Code:", outputVideoElement.error.code, "Message:", outputVideoElement.error.message);
+              };
+
+              outputVideoElement.src = data.output_video_url;
+              outputVideoElement.load();
+              
+              outputVideoSection.style.display = 'block';
+              console.log("Output video section displayed.");
+              
+              detectedPlateDisplay.innerHTML = displayHtml;
+              detectedPlateDisplay.style.display = 'block';
+              saveButtonContainer.style.display = 'block';
+            } catch (e) {
+              console.error("Error setting up output video:", e);
+            }
           } else {
+            console.log("No output video URL received.");
             outputVideoSection.style.display = 'none';
-            detectedPlateDisplay.style.display = 'none'; // Hide plate display if no output video
+            detectedPlateDisplay.style.display = 'none';
           }
 
         } else {
